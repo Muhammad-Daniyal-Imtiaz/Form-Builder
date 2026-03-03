@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     }
 
     const supabase = await createClient()
-    const adminClient = await createAdminClient()
+    const adminClient = createAdminClient()
 
     // Check if user already exists in `users` table (optional)
     const { data: existingUser } = await supabase
@@ -82,8 +82,8 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
-      message: authData.session 
-        ? 'Signup successful! Redirecting...' 
+      message: authData.session
+        ? 'Signup successful! Redirecting...'
         : 'Please check your email to verify your account.',
       user: {
         id: authData.user.id,

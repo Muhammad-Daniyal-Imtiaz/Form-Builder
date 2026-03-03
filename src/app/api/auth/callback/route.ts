@@ -15,7 +15,7 @@ export async function GET(request: Request) {
     }
 
     const supabase = await createClient()
-    const adminClient = await createAdminClient()
+    const adminClient = createAdminClient()
 
     const { data: { session }, error: authError } = await supabase.auth.exchangeCodeForSession(code)
 
@@ -43,10 +43,10 @@ export async function GET(request: Request) {
         .insert({
           id: user.id,
           email: user.email!,
-          name: user.user_metadata?.name || 
-                user.user_metadata?.full_name || 
-                user.email?.split('@')[0] || 
-                'User',
+          name: user.user_metadata?.name ||
+            user.user_metadata?.full_name ||
+            user.email?.split('@')[0] ||
+            'User',
           role: 'user',   // 👈 default role
           avatar_url: user.user_metadata?.avatar_url || null,
           is_active: true,
