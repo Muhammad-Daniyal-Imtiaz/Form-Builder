@@ -1,4 +1,4 @@
-import { createClient } from '@/utils/supabase/server'
+import { createClient, createAdminClient } from '@/utils/supabase/server'
 import { NextResponse } from 'next/server'
 
 export async function GET() {
@@ -36,6 +36,27 @@ export async function POST(request: Request) {
     const { title, description } = await request.json()
     if (!title) {
       return NextResponse.json({ error: 'Title is required' }, { status: 400 })
+    }
+
+    // Auto-heal: Ensure user exists in our `users` table to prevent foreign key errors
+    const adminClient = createAdminClient()
+    const { data: existingUser } = await adminClient
+      .from('users')
+      .select('id')
+      .eq('id', user.id)
+      .single()
+
+    if (!existingUser) {
+      await adminClient.from('users').insert({
+        id: user.id,
+        email: user.email!,
+        name: user.user_metadata?.name || user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
+        role: 'user',
+        is_active: true,
+        is_verified: !!user.email_confirmed_at,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
     }
 
     const { data: form, error } = await supabase
