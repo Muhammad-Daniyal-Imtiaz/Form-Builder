@@ -1,14 +1,13 @@
 import { createAdminClient } from '@/utils/supabase/server'
 import { NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
 
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const supabase = await createAdminClient()
-    const cookieStore = await cookies()
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
@@ -20,7 +19,7 @@ export async function POST(
     const { data: form, error } = await supabase
       .from('forms')
       .update({ published, updated_at: new Date().toISOString() })
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('user_id', user.id)
       .select()
       .single()
