@@ -111,7 +111,7 @@ export default async function DashboardPage() {
 
                     {form.published && (
                       <Link
-                        href={`/f/${form.id}`}
+                        href={`${process.env.NEXT_PUBLIC_SITE_URL || ''}/f/${form.id}`}
                         target="_blank"
                         title="View Public Form"
                         className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors"

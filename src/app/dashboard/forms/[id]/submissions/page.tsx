@@ -65,7 +65,7 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
               Edit Form
             </Link>
             <Link
-              href={`/f/${resolvedParams.id}`}
+              href={`${process.env.NEXT_PUBLIC_SITE_URL || ''}/f/${resolvedParams.id}`}
               target="_blank"
               className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium shadow-sm hover:bg-indigo-700 transition-colors text-sm flex items-center gap-2"
             >
