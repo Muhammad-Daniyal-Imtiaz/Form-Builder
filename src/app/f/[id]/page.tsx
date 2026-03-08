@@ -38,24 +38,48 @@ export default async function PublicFormPage({
     )
   }
 
+  // Extract theme from description
+  let displayDescription = form.description || ''
+  let theme = 'default'
+  if (displayDescription.includes('|||THEME:')) {
+    const parts = displayDescription.split('|||THEME:')
+    displayDescription = parts[0]
+    theme = parts[1]
+  }
+
   // Sort fields by order
   if (form.form_fields) {
     form.form_fields.sort((a: any, b: any) => a.order - b.order)
   }
 
+  // Theme styles
+  const themeContainer: Record<string, string> = {
+    default: 'min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8 font-sans',
+    playful: 'min-h-screen bg-pink-50 py-12 px-4 sm:px-6 lg:px-8 font-sans border-t-8 border-t-yellow-400',
+    elegant: 'min-h-screen bg-[#F5F5F0] py-12 px-4 sm:px-6 lg:px-8 font-serif',
+    dark: 'min-h-screen bg-gray-950 py-12 px-4 sm:px-6 lg:px-8 font-sans text-gray-100'
+  }
+
+  const themeHeader: Record<string, string> = {
+    default: 'bg-white rounded-t-2xl shadow-sm border border-gray-200 border-b-0 p-8 sm:p-10 border-t-8 border-t-indigo-600',
+    playful: 'bg-white border-4 border-black border-b-0 p-8 sm:p-10 rounded-t-2xl shadow-[8px_0px_0px_rgba(0,0,0,1)]',
+    elegant: 'bg-white border text-center border-gray-300 border-b-0 p-8 sm:p-12',
+    dark: 'bg-gray-900 rounded-t-2xl border border-gray-800 border-b-0 p-8 sm:p-10 border-t-4 border-t-purple-500'
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className={themeContainer[theme] || themeContainer.default}>
       <div className="max-w-3xl mx-auto">
         {/* Form Header */}
-        <div className="bg-white rounded-t-2xl shadow-sm border border-gray-200 border-b-0 p-8 sm:p-10 border-t-8 border-t-indigo-600">
-          <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">{form.title}</h1>
-          {form.description && (
-            <p className="mt-4 text-base text-gray-600 whitespace-pre-wrap">{form.description}</p>
+        <div className={themeHeader[theme] || themeHeader.default}>
+          <h1 className={`text-3xl font-extrabold tracking-tight ${theme === 'dark' ? 'text-white' : theme === 'elegant' ? 'text-gray-800' : 'text-gray-900'}`}>{form.title}</h1>
+          {displayDescription && (
+            <p className={`mt-4 text-base whitespace-pre-wrap ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>{displayDescription}</p>
           )}
         </div>
 
         {/* Form Body (Client Component) */}
-        <PublicForm form={form} />
+        <PublicForm form={form} theme={theme} />
       </div>
     </div>
   )

@@ -108,11 +108,15 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
                         const cellValue = sub.data[field.id] || sub.data[field.label] || '-'
                         return (
                           <td key={i} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {field.type === 'file' && typeof cellValue === 'object' && cellValue !== null && cellValue.url ? (
-                              <a href={cellValue.url} target="_blank" rel="noreferrer" className="text-indigo-600 hover:text-indigo-900 hover:underline flex items-center gap-1 font-medium">
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg>
-                                {cellValue.fileName || 'Download'}
-                              </a>
+                            {['file', 'multifile'].includes(field.type) && cellValue && (Array.isArray(cellValue) ? cellValue[0]?.url : cellValue.url) ? (
+                              <div className="flex flex-col gap-1">
+                                {(Array.isArray(cellValue) ? cellValue : [cellValue]).map((fileObj, fIdx) => (
+                                  <a key={fIdx} href={fileObj.url} target="_blank" rel="noreferrer" className="text-indigo-600 hover:text-indigo-900 hover:underline flex items-center gap-1 font-medium text-xs">
+                                    <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg>
+                                    <span className="truncate max-w-[150px]">{fileObj.fileName || 'Download'}</span>
+                                  </a>
+                                ))}
+                              </div>
                             ) : Array.isArray(cellValue) ? (
                               cellValue.join(', ')
                             ) : (

@@ -4,14 +4,14 @@ import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
-type FieldType = 'text' | 'email' | 'number' | 'textarea' | 'select' | 'radio' | 'checkbox' | 'file'
+type FieldType = 'text' | 'email' | 'number' | 'textarea' | 'select' | 'multiselect' | 'radio' | 'checkbox' | 'file' | 'multifile'
 
 interface FormField {
   id?: string
   label: string
   type: FieldType
   required: boolean
-  options: string[] | null // strictly array for select/radio/checkbox
+  options: string[] | null // strictly array for select/multiselect/radio/checkbox
   placeholder: string | null
 }
 
@@ -33,7 +33,16 @@ export default function EditFormPage({ params }: { params: Promise<{ id: string 
       const res = await fetch(`/api/forms/${resolvedParams.id}`)
       if (!res.ok) throw new Error('Failed to fetch form')
       const data = await res.json()
-      setForm(data)
+
+      let desc = data.description || ''
+      let theme = 'default'
+      if (desc.includes('|||THEME:')) {
+        const parts = desc.split('|||THEME:')
+        desc = parts[0]
+        theme = parts[1]
+      }
+
+      setForm({ ...data, description: desc, theme })
       setFields(data.form_fields || [])
     } catch (err: any) {
       setError(err.message)
@@ -44,10 +53,10 @@ export default function EditFormPage({ params }: { params: Promise<{ id: string 
 
   const addField = (type: FieldType) => {
     setFields([...fields, {
-      label: `New ${type} field`,
+      label: `New field`,
       type,
       required: false,
-      options: ['select', 'radio', 'checkbox'].includes(type) ? ['Option 1', 'Option 2'] : null,
+      options: ['select', 'multiselect', 'radio', 'checkbox'].includes(type) ? ['Option 1', 'Option 2'] : null,
       placeholder: null
     }])
   }
@@ -90,12 +99,14 @@ export default function EditFormPage({ params }: { params: Promise<{ id: string 
     setError('')
     try {
       // 1. Save form settings (title, description, published)
+      const saveDescription = form.description + (form.theme && form.theme !== 'default' ? `|||THEME:${form.theme}` : '')
+
       await fetch(`/api/forms/${resolvedParams.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: form.title,
-          description: form.description,
+          description: saveDescription,
           published: form.published
         })
       })
@@ -173,9 +184,11 @@ export default function EditFormPage({ params }: { params: Promise<{ id: string 
               { type: 'email', label: 'Email', icon: 'M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' },
               { type: 'number', label: 'Number', icon: 'M7 20l4-16m2 16l4-16M6 9h14M4 15h14' },
               { type: 'select', label: 'Dropdown', icon: 'M19 9l-7 7-7-7' },
+              { type: 'multiselect', label: 'Multi-Select', icon: 'M4 6h16M4 12h16m-7 6h7' },
               { type: 'radio', label: 'Radio', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
               { type: 'checkbox', label: 'Checkbox', icon: 'M5 13l4 4L19 7' },
-              { type: 'file', label: 'File Upload', icon: 'M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12' },
+              { type: 'file', label: 'File', icon: 'M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12' },
+              { type: 'multifile', label: 'Multi-File', icon: 'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12' },
             ].map((btn) => (
               <button
                 key={btn.type}
@@ -209,6 +222,26 @@ export default function EditFormPage({ params }: { params: Promise<{ id: string 
               placeholder="Form description (optional)"
               rows={2}
             />
+
+            <div className="mt-4 pt-4 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center gap-4">
+              <span className="text-sm font-semibold text-gray-700">Form Template Theme:</span>
+              <div className="flex-1 flex gap-3 flex-wrap">
+                {[
+                  { id: 'default', name: 'Clean Minimal' },
+                  { id: 'playful', name: 'Playful & Creative' },
+                  { id: 'elegant', name: 'Elegant Serif' },
+                  { id: 'dark', name: 'Dark Mode' }
+                ].map(t => (
+                  <button
+                    key={t.id}
+                    onClick={() => setForm({ ...form, theme: t.id })}
+                    className={`px-4 py-2 rounded-lg border text-sm transition-all focus:outline-none ${form?.theme === t.id ? 'bg-indigo-50 border-indigo-600 text-indigo-700 font-bold shadow-sm' : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'}`}
+                  >
+                    {t.name}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
 
           {/* Fields List */}
@@ -263,13 +296,13 @@ export default function EditFormPage({ params }: { params: Promise<{ id: string 
                       </div>
 
                       {/* Field Options Configuration (Select/Radio/Checkbox) */}
-                      {['select', 'radio', 'checkbox'].includes(field.type) && field.options && (
+                      {['select', 'multiselect', 'radio', 'checkbox'].includes(field.type) && field.options && (
                         <div className="pl-4 border-l-2 border-indigo-100 space-y-2 mt-4 text-sm">
                           {field.options.map((opt, optIdx) => (
                             <div key={optIdx} className="flex items-center gap-2">
                               {field.type === 'radio' && <div className="w-3 h-3 rounded-full border border-gray-300"></div>}
                               {field.type === 'checkbox' && <div className="w-3 h-3 rounded border border-gray-300"></div>}
-                              {field.type === 'select' && <span className="text-gray-400">{optIdx + 1}.</span>}
+                              {['select', 'multiselect'].includes(field.type) && <span className="text-gray-400">{optIdx + 1}.</span>}
 
                               <input
                                 type="text"
@@ -308,9 +341,9 @@ export default function EditFormPage({ params }: { params: Promise<{ id: string 
                       )}
 
                       {/* File Upload Visual Cue */}
-                      {field.type === 'file' && (
+                      {['file', 'multifile'].includes(field.type) && (
                         <div className="mt-4 p-4 border border-dashed border-gray-300 rounded-lg bg-gray-50 text-center text-gray-400 text-sm">
-                          File upload area will appear here
+                          {field.type === 'multifile' ? 'Multi-file upload area will appear here' : 'Single file upload area will appear here'}
                         </div>
                       )}
                     </div>
