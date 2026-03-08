@@ -4,9 +4,10 @@ import { cookies } from 'next/headers'
 
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string; fieldId: string }> }
 ) {
   try {
+    const resolvedParams = await params
     const supabase = await createAdminClient()
     const cookieStore = await cookies()
     const { data: { user } } = await supabase.auth.getUser()
@@ -19,7 +20,7 @@ export async function POST(
     const { data: form } = await supabase
       .from('forms')
       .select('user_id')
-      .eq('id', params.id)
+      .eq('id', resolvedParams.id)
       .single()
 
     if (!form || form.user_id !== user.id) {
@@ -31,7 +32,7 @@ export async function POST(
     const { data: maxOrder } = await supabase
       .from('form_fields')
       .select('order')
-      .eq('form_id', params.id)
+      .eq('form_id', resolvedParams.id)
       .order('order', { ascending: false })
       .limit(1)
       .maybeSingle()
@@ -41,7 +42,7 @@ export async function POST(
     const { data: field, error } = await supabase
       .from('form_fields')
       .insert({
-        form_id: params.id,
+        form_id: resolvedParams.id,
         ...fieldData,
         order: newOrder,
       })
