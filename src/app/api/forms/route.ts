@@ -40,14 +40,19 @@ export async function POST(request: Request) {
 
     // Auto-heal: Ensure user exists in our `users` table to prevent foreign key errors
     const adminClient = createAdminClient()
-    const { data: existingUser } = await adminClient
+    const { data: existingUser, error: checkError } = await adminClient
       .from('users')
       .select('id')
       .eq('id', user.id)
       .single()
 
+    if (checkError && checkError.code !== 'PGRST116') {
+      console.error('Check user error:', checkError)
+    }
+
     if (!existingUser) {
-      await adminClient.from('users').insert({
+      console.log('User profile missing for', user.id, '- creating now.')
+      const { error: insertError } = await adminClient.from('users').insert({
         id: user.id,
         email: user.email!,
         name: user.user_metadata?.name || user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
@@ -57,6 +62,10 @@ export async function POST(request: Request) {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
+      if (insertError) {
+        console.error('Auto-heal user insert error:', insertError)
+        throw new Error(`Failed to synchronize user profile: ${insertError.message}`)
+      }
     }
 
     const { data: form, error } = await supabase

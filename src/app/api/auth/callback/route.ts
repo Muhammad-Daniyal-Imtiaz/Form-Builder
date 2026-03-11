@@ -57,8 +57,8 @@ export async function GET(request: Request) {
         })
 
       if (createError) {
-        console.error('Error creating user:', createError)
-        // Continue – user might already exist from another request
+        console.error('Error creating user profile during callback:', createError)
+        throw new Error(`Failed to create user profile in database: ${createError.message}`)
       }
     } else {
       // Update last_login for existing user
