@@ -26,6 +26,16 @@ export interface CustomStyles {
   inputBorderColor: string
   inputBg: string
   labelColor: string
+  // Layout & Shaping
+  containerWidth: number // max-width in px
+  containerPadding: number // padding in px
+  borderRadius: number // border-radius in px
+  boxShadow: string // shadow preset
+  fontSizeBase: number // base font size in px
+  fieldSpacing: number // space between fields in px
+  labelWeight: string // 'normal' | 'semibold' | 'bold'
+  buttonStyle: 'rounded' | 'pill' | 'square'
+  inputVariant: 'outline' | 'filled' | 'underline'
 }
 
 const DEFAULT_STYLES: CustomStyles = {
@@ -39,6 +49,15 @@ const DEFAULT_STYLES: CustomStyles = {
   inputBorderColor: '#e5e7eb',
   inputBg: '#f9fafb',
   labelColor: '#111827',
+  containerWidth: 640,
+  containerPadding: 40,
+  borderRadius: 16,
+  boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+  fontSizeBase: 16,
+  fieldSpacing: 32,
+  labelWeight: 'bold',
+  buttonStyle: 'rounded',
+  inputVariant: 'outline',
 }
 
 const THEME_PRESETS: Record<string, { name: string; desc: string; emoji: string; styles: CustomStyles }> = {
@@ -46,33 +65,33 @@ const THEME_PRESETS: Record<string, { name: string; desc: string; emoji: string;
     name: 'Clean Minimal', desc: 'Professional & crisp', emoji: '✦',
     styles: { ...DEFAULT_STYLES }
   },
+  modern: {
+    name: 'Modern Soft', desc: 'Large padding & round', emoji: '☁️',
+    styles: { ...DEFAULT_STYLES, borderRadius: 32, containerPadding: 56, boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)' }
+  },
   ocean: {
     name: 'Ocean Breeze', desc: 'Cool teal gradients', emoji: '🌊',
-    styles: { headerBg: '#0f766e', headerText: '#fff', bodyBg: '#f0fdfa', bodyText: '#134e4a', accentColor: '#0d9488', buttonText: '#fff', fontFamily: 'Inter', inputBorderColor: '#99f6e4', inputBg: '#f0fdfa', labelColor: '#0f766e' }
-  },
-  sunset: {
-    name: 'Sunset', desc: 'Warm & vibrant', emoji: '🌅',
-    styles: { headerBg: '#ea580c', headerText: '#fff', bodyBg: '#fff7ed', bodyText: '#7c2d12', accentColor: '#f97316', buttonText: '#fff', fontFamily: 'Poppins', inputBorderColor: '#fed7aa', inputBg: '#fff7ed', labelColor: '#9a3412' }
+    styles: { ...DEFAULT_STYLES, headerBg: '#0f766e', headerText: '#fff', bodyBg: '#f0fdfa', bodyText: '#134e4a', accentColor: '#0d9488', buttonText: '#fff', inputBorderColor: '#99f6e4', inputBg: '#f0fdfa', labelColor: '#0f766e' }
   },
   dark: {
     name: 'Night Mode', desc: 'Sleek dark interface', emoji: '🌙',
-    styles: { headerBg: '#1e1b4b', headerText: '#c4b5fd', bodyBg: '#111827', bodyText: '#e5e7eb', accentColor: '#7c3aed', buttonText: '#fff', fontFamily: 'Inter', inputBorderColor: '#374151', inputBg: '#1f2937', labelColor: '#d1d5db' }
+    styles: { ...DEFAULT_STYLES, headerBg: '#1e1b4b', headerText: '#c4b5fd', bodyBg: '#111827', bodyText: '#e5e7eb', accentColor: '#7c3aed', buttonText: '#fff', inputBorderColor: '#374151', inputBg: '#1f2937', labelColor: '#d1d5db', boxShadow: '0 0 20px rgba(0,0,0,0.5)' }
   },
   elegant: {
-    name: 'Elegant Serif', desc: 'Refined & classic', emoji: '✒️',
-    styles: { headerBg: '#f5f5f0', headerText: '#1c1917', bodyBg: '#fafaf9', bodyText: '#292524', accentColor: '#292524', buttonText: '#fff', fontFamily: 'Merriweather', inputBorderColor: '#d6d3d1', inputBg: '#fafaf9', labelColor: '#44403c' }
+    name: 'Noble Serif', desc: 'Refined & classic', emoji: '✒️',
+    styles: { ...DEFAULT_STYLES, headerBg: '#f5f5f0', headerText: '#1c1917', bodyBg: '#fafaf9', bodyText: '#292524', accentColor: '#292524', buttonText: '#fff', fontFamily: 'Merriweather', inputBorderColor: '#d6d3d1', inputBg: '#fafaf9', labelColor: '#44403c', borderRadius: 0 }
   },
-  playful: {
-    name: 'Playful', desc: 'High contrast & fun', emoji: '🎨',
-    styles: { headerBg: '#fbbf24', headerText: '#000', bodyBg: '#fff', bodyText: '#000', accentColor: '#ec4899', buttonText: '#000', fontFamily: 'Poppins', inputBorderColor: '#000', inputBg: '#fff', labelColor: '#000' }
+  glass: {
+    name: 'Glassmorphism', desc: 'Frosted & modern', emoji: '💎',
+    styles: { ...DEFAULT_STYLES, headerBg: 'rgba(255,255,255,0.8)', headerText: '#1e1b4b', bodyBg: 'rgba(255,255,255,0.4)', bodyText: '#1e1b4b', accentColor: '#6366f1', buttonText: '#fff', inputBg: 'rgba(255,255,255,0.5)', inputBorderColor: 'rgba(255,255,255,0.2)', boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37)' }
   },
-  corporate: {
-    name: 'Corporate Blue', desc: 'Trustworthy & clean', emoji: '🏢',
-    styles: { headerBg: '#1e40af', headerText: '#fff', bodyBg: '#eff6ff', bodyText: '#1e3a8a', accentColor: '#2563eb', buttonText: '#fff', fontFamily: 'Inter', inputBorderColor: '#bfdbfe', inputBg: '#eff6ff', labelColor: '#1e40af' }
+  brutal: {
+    name: 'Brutalism', desc: 'High contrast & bold', emoji: '🔳',
+    styles: { ...DEFAULT_STYLES, headerBg: '#000', headerText: '#fff', bodyBg: '#fff', bodyText: '#000', accentColor: '#fbbf24', buttonText: '#000', inputBorderColor: '#000', borderRadius: 0, boxShadow: '8px 8px 0px 0px #000', labelWeight: 'bold' }
   },
-  forest: {
-    name: 'Forest Green', desc: 'Natural & serene', emoji: '🌿',
-    styles: { headerBg: '#166534', headerText: '#f0fdf4', bodyBg: '#f0fdf4', bodyText: '#14532d', accentColor: '#16a34a', buttonText: '#fff', fontFamily: 'Inter', inputBorderColor: '#bbf7d0', inputBg: '#f0fdf4', labelColor: '#15803d' }
+  eco: {
+    name: 'Eco Green', desc: 'Organic & earthy', emoji: '🌿',
+    styles: { ...DEFAULT_STYLES, headerBg: '#064e3b', headerText: '#ecfdf5', bodyBg: '#f0fdf4', bodyText: '#064e3b', accentColor: '#10b981', buttonText: '#fff', inputBorderColor: '#a7f3d0', inputBg: '#fff', borderRadius: 24 }
   },
 }
 
@@ -143,7 +162,14 @@ function FormCanvas({
     '--form-input-bg': customStyles.inputBg,
     '--form-label': customStyles.labelColor,
     '--form-font': customStyles.fontFamily,
+    '--form-radius': `${customStyles.borderRadius}px`,
+    '--form-padding': `${customStyles.containerPadding}px`,
+    '--form-base-size': `${customStyles.fontSizeBase}px`,
+    '--form-spacing': `${customStyles.fieldSpacing}px`,
+    '--form-label-weight': customStyles.labelWeight === 'bold' ? '700' : customStyles.labelWeight === 'semibold' ? '600' : '400',
+    '--form-btn-radius': customStyles.buttonStyle === 'pill' ? '9999px' : customStyles.buttonStyle === 'square' ? '0px' : '0.75rem',
     fontFamily: `"${customStyles.fontFamily}", sans-serif`,
+    fontSize: `${customStyles.fontSizeBase}px`,
   } as React.CSSProperties
 
   const inputCls = 'w-full px-4 py-3 rounded-xl outline-none transition-all'
@@ -157,19 +183,34 @@ function FormCanvas({
     color: `var(--form-label)`,
     fontFamily: 'inherit',
     display: 'block',
-    fontWeight: 700,
+    fontWeight: 'var(--form-label-weight)' as any,
     fontSize: '0.95rem',
     marginBottom: '0.5rem',
   }
 
+  const getInternalInputStyle = (): React.CSSProperties => {
+    const base = { ...inputStyle }
+    if (customStyles.inputVariant === 'filled') {
+      base.border = 'none'
+      base.backgroundColor = `${customStyles.inputBorderColor}22`
+    } else if (customStyles.inputVariant === 'underline') {
+      base.border = 'none'
+      base.borderRadius = '0'
+      base.borderBottom = `2px solid ${customStyles.inputBorderColor}`
+      base.paddingLeft = '4px'
+      base.paddingRight = '4px'
+      base.backgroundColor = 'transparent'
+    }
+    return base
+  }
+
   return (
-    <div style={vars} className="w-full">
+    <div style={{ ...vars, maxWidth: `${customStyles.containerWidth}px`, margin: '0 auto', boxShadow: customStyles.boxShadow, borderRadius: `${customStyles.borderRadius}px`, overflow: 'hidden' }} className="w-full transition-all duration-300">
       {fontUrl && <link rel="stylesheet" href={fontUrl} />}
 
-      {/* HEADER — exactly as public form */}
       <div
-        className="rounded-t-2xl p-8 sm:p-12 relative"
-        style={{ background: `var(--form-header-bg)` }}
+        className="relative"
+        style={{ background: `var(--form-header-bg)`, padding: `var(--form-padding)` }}
       >
         <input
           type="text"
@@ -189,10 +230,9 @@ function FormCanvas({
         />
       </div>
 
-      {/* BODY */}
       <div
-        className="rounded-b-2xl p-8 sm:p-10 pb-12 space-y-10"
-        style={{ background: `var(--form-body-bg)`, border: `1.5px solid var(--form-input-border)`, borderTop: 'none' }}
+        className="pb-12"
+        style={{ background: `var(--form-body-bg)`, padding: `var(--form-padding)`, borderTop: 'none', display: 'flex', flexDirection: 'column', gap: `var(--form-spacing)` }}
       >
         {fields.length === 0 ? (
           <div className="flex flex-col items-center justify-center min-h-[300px] text-center py-12 border-2 border-dashed rounded-2xl"
@@ -273,20 +313,20 @@ function FormCanvas({
 
                 {/* Field Renders */}
                 {field.type === 'text' && (
-                  <input type="text" placeholder={field.placeholder || 'Your answer...'} className={inputCls} style={inputStyle} readOnly />
+                  <input type="text" placeholder={field.placeholder || 'Your answer...'} className={inputCls} style={getInternalInputStyle()} readOnly />
                 )}
                 {field.type === 'email' && (
-                  <input type="email" placeholder={field.placeholder || 'name@example.com'} className={inputCls} style={inputStyle} readOnly />
+                  <input type="email" placeholder={field.placeholder || 'name@example.com'} className={inputCls} style={getInternalInputStyle()} readOnly />
                 )}
                 {field.type === 'number' && (
-                  <input type="number" placeholder={field.placeholder || '0'} className={inputCls} style={inputStyle} readOnly />
+                  <input type="number" placeholder={field.placeholder || '0'} className={inputCls} style={getInternalInputStyle()} readOnly />
                 )}
                 {field.type === 'textarea' && (
-                  <textarea rows={4} placeholder={field.placeholder || 'Your answer...'} className={`${inputCls} resize-y`} style={inputStyle} readOnly />
+                  <textarea rows={4} placeholder={field.placeholder || 'Your answer...'} className={`${inputCls} resize-y`} style={getInternalInputStyle()} readOnly />
                 )}
                 {field.type === 'select' && (
                   <div className="relative">
-                    <select className={`${inputCls} appearance-none`} style={inputStyle} disabled>
+                    <select className={`${inputCls} appearance-none`} style={getInternalInputStyle()} disabled>
                       <option value="">Select an option...</option>
                       {field.options?.map((o, i) => <option key={i}>{o}</option>)}
                     </select>
@@ -296,7 +336,7 @@ function FormCanvas({
                   </div>
                 )}
                 {field.type === 'multiselect' && (
-                  <select multiple className={`${inputCls} min-h-[130px]`} style={inputStyle} disabled>
+                  <select multiple className={`${inputCls} min-h-[130px]`} style={getInternalInputStyle()} disabled>
                     {field.options?.map((o, i) => <option key={i}>{o}</option>)}
                   </select>
                 )}
@@ -360,8 +400,8 @@ function FormCanvas({
           <div className="pt-8 mt-6 border-t" style={{ borderColor: customStyles.inputBorderColor }}>
             <button
               disabled
-              className="w-full py-4 px-6 rounded-xl text-lg font-bold transition-all cursor-not-allowed opacity-90"
-              style={{ background: customStyles.accentColor, color: customStyles.buttonText, fontFamily: 'inherit' }}
+              className="w-full py-4 px-6 text-lg font-bold transition-all cursor-not-allowed opacity-90"
+              style={{ background: customStyles.accentColor, color: customStyles.buttonText, fontFamily: 'inherit', borderRadius: 'var(--form-btn-radius)' }}
             >
               Submit Form
             </button>
@@ -695,6 +735,21 @@ export default function EditFormPage({ params }: { params: Promise<{ id: string 
                 </select>
               </div>
 
+              <div>
+                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-3">Label Weight</p>
+                <div className="grid grid-cols-3 gap-1.5 bg-gray-50 rounded-xl p-2 border border-gray-100">
+                  {['normal', 'semibold', 'bold'].map(w => (
+                    <button
+                      key={w}
+                      onClick={() => updateStyles({ labelWeight: w })}
+                      className={`text-[10px] font-bold py-1.5 px-1 rounded-lg border transition-all ${customStyles.labelWeight === w ? 'bg-white border-indigo-400 text-indigo-700 shadow-sm' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+                    >
+                      {w.charAt(0).toUpperCase() + w.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Header Colors */}
               <div>
                 <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-3">Header</p>
@@ -740,16 +795,106 @@ export default function EditFormPage({ params }: { params: Promise<{ id: string 
                 </button>
               </div>
 
+              {/* Shape & Layout */}
+              <div>
+                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-3">Shape & Layout</p>
+                <div className="space-y-4 bg-gray-50 rounded-xl p-3 border border-gray-100">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase">Container Width ({customStyles.containerWidth}px)</label>
+                    <input
+                      type="range" min="400" max="1200" step="10"
+                      value={customStyles.containerWidth}
+                      onChange={e => updateStyles({ containerWidth: parseInt(e.target.value) })}
+                      className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase">Padding ({customStyles.containerPadding}px)</label>
+                    <input
+                      type="range" min="16" max="100" step="4"
+                      value={customStyles.containerPadding}
+                      onChange={e => updateStyles({ containerPadding: parseInt(e.target.value) })}
+                      className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase">Corner Radius ({customStyles.borderRadius}px)</label>
+                    <input
+                      type="range" min="0" max="40" step="2"
+                      value={customStyles.borderRadius}
+                      onChange={e => updateStyles({ borderRadius: parseInt(e.target.value) })}
+                      className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase">Field Spacing ({customStyles.fieldSpacing}px)</label>
+                    <input
+                      type="range" min="8" max="80" step="4"
+                      value={customStyles.fieldSpacing}
+                      onChange={e => updateStyles({ fieldSpacing: parseInt(e.target.value) })}
+                      className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase">Text Scale ({customStyles.fontSizeBase}px)</label>
+                    <input
+                      type="range" min="12" max="22" step="1"
+                      value={customStyles.fontSizeBase}
+                      onChange={e => updateStyles({ fontSizeBase: parseInt(e.target.value) })}
+                      className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Advanced UI toggles */}
+              <div>
+                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-3">Field Style</p>
+                <div className="grid grid-cols-3 gap-1.5 bg-gray-50 rounded-xl p-2 border border-gray-100">
+                  {['outline', 'filled', 'underline'].map(v => (
+                    <button
+                      key={v}
+                      onClick={() => updateStyles({ inputVariant: v as any })}
+                      className={`text-[10px] font-bold py-1.5 px-1 rounded-lg border transition-all ${customStyles.inputVariant === v ? 'bg-white border-indigo-400 text-indigo-700 shadow-sm' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+                    >
+                      {v.charAt(0).toUpperCase() + v.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-3">Button Shape</p>
+                <div className="grid grid-cols-3 gap-1.5 bg-gray-50 rounded-xl p-2 border border-gray-100">
+                  {['square', 'rounded', 'pill'].map(v => (
+                    <button
+                      key={v}
+                      onClick={() => updateStyles({ buttonStyle: v as any })}
+                      className={`text-[10px] font-bold py-1.5 px-1 rounded-lg border transition-all ${customStyles.buttonStyle === v ? 'bg-white border-indigo-400 text-indigo-700 shadow-sm' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+                    >
+                      {v.charAt(0).toUpperCase() + v.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Page Background */}
               <div>
-                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-3">Page Background</p>
-                <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg border border-gray-300" style={{ background: '#f3f4f6' }} />
-                    <div className="flex-1">
-                      <p className="text-xs text-gray-500">The page uses a neutral gray background</p>
-                    </div>
-                  </div>
+                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-3">Shadow Intensity</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { label: 'Flat', value: 'none' },
+                    { label: 'Soft', value: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' },
+                    { label: 'Heavy', value: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' },
+                  ].map(s => (
+                    <button
+                      key={s.label}
+                      onClick={() => updateStyles({ boxShadow: s.value })}
+                      className={`text-[10px] font-bold py-2 rounded-lg border transition-all ${customStyles.boxShadow === s.value ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-gray-200 text-gray-600 hover:border-indigo-300'}`}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
                 </div>
               </div>
 
@@ -803,7 +948,7 @@ export default function EditFormPage({ params }: { params: Promise<{ id: string 
 
         {/* MAIN CANVAS — The live preview */}
         <main className="flex-1 overflow-y-auto bg-gray-100 p-6 lg:p-10">
-          <div className="max-w-2xl mx-auto">
+          <div className="mx-auto w-full transition-all duration-500" style={{ maxWidth: `${Math.max(672, customStyles.containerWidth)}px` }}>
             {/* Visibility Banner */}
             {!form?.published && (
               <div className="mb-6 bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between shadow-sm">

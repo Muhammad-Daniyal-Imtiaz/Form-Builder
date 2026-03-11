@@ -15,6 +15,11 @@ const DEFAULT_STYLES = {
   inputBorderColor: '#e5e7eb',
   inputBg: '#f9fafb',
   labelColor: '#111827',
+  containerWidth: 640,
+  containerPadding: 40,
+  borderRadius: 16,
+  boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+  fontSizeBase: 16,
 }
 
 export default async function PublicFormPage({
@@ -62,32 +67,38 @@ export default async function PublicFormPage({
     form.form_fields.sort((a: any, b: any) => a.order - b.order)
   }
 
-  const fontFamily = customStyles.fontFamily
-  const fontUrl = fontFamily !== 'Inter' && fontFamily !== 'Georgia'
-    ? `https://fonts.googleapis.com/css2?family=${fontFamily.replace(' ', '+')}:wght@400;500;600;700;800&display=swap`
+  const fontUrl = customStyles.fontFamily !== 'Inter' && customStyles.fontFamily !== 'Georgia'
+    ? `https://fonts.googleapis.com/css2?family=${customStyles.fontFamily.replace(' ', '+')}:wght@400;500;600;700;800&display=swap`
     : null
 
   return (
-    <div className="min-h-screen py-10 px-4 sm:px-6" style={{ background: '#f3f4f6', fontFamily: `"${fontFamily}", sans-serif` }}>
-      {fontUrl && <link rel="preconnect" href="https://fonts.googleapis.com" />}
+    <div className="min-h-screen py-12 px-4 sm:px-6" style={{ background: '#f3f4f6' }}>
       {fontUrl && <link rel="stylesheet" href={fontUrl} />}
 
-      <div className="max-w-2xl mx-auto">
-        {/* FORM HEADER — exact match with builder */}
+      <div
+        className="mx-auto overflow-hidden transition-all duration-300"
+        style={{
+          maxWidth: `${customStyles.containerWidth}px`,
+          boxShadow: customStyles.boxShadow,
+          borderRadius: `${customStyles.borderRadius}px`,
+          fontFamily: `"${customStyles.fontFamily}", sans-serif`,
+          fontSize: `${customStyles.fontSizeBase}px`
+        }}
+      >
+        {/* FORM HEADER */}
         <div
-          className="rounded-t-2xl p-8 sm:p-12"
-          style={{ background: customStyles.headerBg }}
+          style={{ background: customStyles.headerBg, padding: `${customStyles.containerPadding}px` }}
         >
           <h1
             className="text-3xl sm:text-4xl font-extrabold tracking-tight"
-            style={{ color: customStyles.headerText, fontFamily: `"${fontFamily}", sans-serif` }}
+            style={{ color: customStyles.headerText }}
           >
             {form.title}
           </h1>
           {displayDescription && (
             <p
               className="mt-4 text-lg whitespace-pre-wrap"
-              style={{ color: customStyles.headerText, opacity: 0.85, fontFamily: `"${fontFamily}", sans-serif` }}
+              style={{ color: customStyles.headerText, opacity: 0.85 }}
             >
               {displayDescription}
             </p>

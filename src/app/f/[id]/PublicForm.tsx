@@ -14,6 +14,15 @@ interface CustomStyles {
   inputBorderColor: string
   inputBg: string
   labelColor: string
+  containerWidth: number
+  containerPadding: number
+  borderRadius: number
+  boxShadow: string
+  fontSizeBase: number
+  fieldSpacing: number
+  labelWeight: string
+  buttonStyle: 'rounded' | 'pill' | 'square'
+  inputVariant: 'outline' | 'filled' | 'underline'
 }
 
 const DEFAULT_STYLES: CustomStyles = {
@@ -27,6 +36,15 @@ const DEFAULT_STYLES: CustomStyles = {
   inputBorderColor: '#e5e7eb',
   inputBg: '#f9fafb',
   labelColor: '#111827',
+  containerWidth: 640,
+  containerPadding: 40,
+  borderRadius: 16,
+  boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+  fontSizeBase: 16,
+  fieldSpacing: 32,
+  labelWeight: 'bold',
+  buttonStyle: 'rounded',
+  inputVariant: 'outline',
 }
 
 export default function PublicForm({ form, customStyles: rawStyles }: { form: any; customStyles?: Partial<CustomStyles> }) {
@@ -108,35 +126,53 @@ export default function PublicForm({ form, customStyles: rawStyles }: { form: an
     }
   }
 
-  const inputStyle: React.CSSProperties = {
+  const baseInputStyle: React.CSSProperties = {
     border: `1.5px solid ${cs.inputBorderColor}`,
     background: cs.inputBg,
     color: cs.bodyText,
-    fontFamily: `"${cs.fontFamily}", sans-serif`,
+    fontFamily: 'inherit',
     outline: 'none',
     display: 'block',
     width: '100%',
     padding: '0.75rem 1rem',
     borderRadius: '0.75rem',
-    fontSize: '1rem',
-    transition: 'border-color 0.15s',
+    fontSize: '1em',
+    transition: 'all 0.15s',
+  }
+
+  const getInternalInputStyle = (): React.CSSProperties => {
+    const base = { ...baseInputStyle }
+    if (cs.inputVariant === 'filled') {
+      base.border = 'none'
+      base.backgroundColor = `${cs.inputBorderColor}22`
+    } else if (cs.inputVariant === 'underline') {
+      base.border = 'none'
+      base.borderRadius = '0'
+      base.borderBottom = `2px solid ${cs.inputBorderColor}`
+      base.paddingLeft = '4px'
+      base.paddingRight = '4px'
+      base.backgroundColor = 'transparent'
+    }
+    return base
   }
 
   const labelStyle: React.CSSProperties = {
     display: 'block',
-    fontWeight: 700,
-    fontSize: '0.95rem',
+    fontWeight: cs.labelWeight === 'bold' ? 700 : cs.labelWeight === 'semibold' ? 600 : 400,
+    fontSize: '0.95em',
     marginBottom: '0.5rem',
     color: cs.labelColor,
-    fontFamily: `"${cs.fontFamily}", sans-serif`,
+    fontFamily: 'inherit',
   }
 
+  const btnRadius = cs.buttonStyle === 'pill' ? '9999px' : cs.buttonStyle === 'square' ? '0px' : '0.75rem'
+
   return (
-    <div style={{ background: cs.bodyBg, fontFamily: `"${cs.fontFamily}", sans-serif` }} className="rounded-b-2xl p-8 sm:p-10 pb-16">
+    <div style={{ background: cs.bodyBg, fontFamily: `"${cs.fontFamily}", sans-serif`, padding: `${cs.containerPadding}px`, fontSize: `${cs.fontSizeBase}px` }} className="pb-16 border-t font-inherit">
       {fontUrl && <link rel="stylesheet" href={fontUrl} />}
 
       {error && (
-        <div className="mb-8 p-4 bg-red-50 border-l-4 border-red-500 rounded-lg">
+        <div className="mb-8 p-4 bg-red-50 border-l-4 border-red-500 rounded-lg text-[0.9em]">
           <div className="flex items-start gap-3">
             <svg className="h-5 w-5 text-red-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -149,7 +185,7 @@ export default function PublicForm({ form, customStyles: rawStyles }: { form: an
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-10">
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: `${cs.fieldSpacing}px` }}>
         {form.form_fields?.map((field: any, index: number) => {
           const fieldKey = field.id || field.label
           return (
@@ -162,7 +198,7 @@ export default function PublicForm({ form, customStyles: rawStyles }: { form: an
               {field.type === 'text' && (
                 <input type="text" required={field.required} placeholder={field.placeholder || ''}
                   onChange={e => handleInputChange(fieldKey, e.target.value)}
-                  style={inputStyle}
+                  style={getInternalInputStyle()}
                   onFocus={e => { e.target.style.borderColor = cs.accentColor }}
                   onBlur={e => { e.target.style.borderColor = cs.inputBorderColor }}
                 />
@@ -171,7 +207,7 @@ export default function PublicForm({ form, customStyles: rawStyles }: { form: an
               {field.type === 'email' && (
                 <input type="email" required={field.required} placeholder={field.placeholder || 'name@example.com'}
                   onChange={e => handleInputChange(fieldKey, e.target.value)}
-                  style={inputStyle}
+                  style={getInternalInputStyle()}
                   onFocus={e => { e.target.style.borderColor = cs.accentColor }}
                   onBlur={e => { e.target.style.borderColor = cs.inputBorderColor }}
                 />
@@ -180,7 +216,7 @@ export default function PublicForm({ form, customStyles: rawStyles }: { form: an
               {field.type === 'number' && (
                 <input type="number" required={field.required} placeholder={field.placeholder || ''}
                   onChange={e => handleInputChange(fieldKey, Number(e.target.value))}
-                  style={inputStyle}
+                  style={getInternalInputStyle()}
                   onFocus={e => { e.target.style.borderColor = cs.accentColor }}
                   onBlur={e => { e.target.style.borderColor = cs.inputBorderColor }}
                 />
@@ -189,7 +225,7 @@ export default function PublicForm({ form, customStyles: rawStyles }: { form: an
               {field.type === 'textarea' && (
                 <textarea required={field.required} rows={4} placeholder={field.placeholder || ''}
                   onChange={e => handleInputChange(fieldKey, e.target.value)}
-                  style={{ ...inputStyle, resize: 'vertical' }}
+                  style={{ ...getInternalInputStyle(), resize: 'vertical' }}
                   onFocus={e => { e.target.style.borderColor = cs.accentColor }}
                   onBlur={e => { e.target.style.borderColor = cs.inputBorderColor }}
                 />
@@ -199,7 +235,7 @@ export default function PublicForm({ form, customStyles: rawStyles }: { form: an
                 <div className="relative">
                   <select required={field.required}
                     onChange={e => handleInputChange(fieldKey, e.target.value)}
-                    style={{ ...inputStyle, appearance: 'none' }}
+                    style={{ ...getInternalInputStyle(), appearance: 'none' }}
                     defaultValue=""
                     onFocus={e => { e.target.style.borderColor = cs.accentColor }}
                     onBlur={e => { e.target.style.borderColor = cs.inputBorderColor }}
@@ -220,7 +256,7 @@ export default function PublicForm({ form, customStyles: rawStyles }: { form: an
                       const selected = Array.from(e.target.selectedOptions, o => o.value)
                       handleInputChange(fieldKey, selected)
                     }}
-                    style={{ ...inputStyle, minHeight: '130px' }}
+                    style={{ ...getInternalInputStyle(), minHeight: '130px' }}
                     onFocus={e => { e.target.style.borderColor = cs.accentColor }}
                     onBlur={e => { e.target.style.borderColor = cs.inputBorderColor }}
                   >
@@ -238,7 +274,7 @@ export default function PublicForm({ form, customStyles: rawStyles }: { form: an
                         onChange={e => handleInputChange(fieldKey, e.target.value)}
                         className="w-4 h-4" style={{ accentColor: cs.accentColor }}
                       />
-                      <span style={{ color: cs.bodyText, fontFamily: `"${cs.fontFamily}", sans-serif` }}>{opt}</span>
+                      <span style={{ color: cs.bodyText, fontFamily: 'inherit' }}>{opt}</span>
                     </label>
                   ))}
                 </div>
@@ -252,7 +288,7 @@ export default function PublicForm({ form, customStyles: rawStyles }: { form: an
                         onChange={e => handleCheckboxChange(fieldKey, opt, e.target.checked)}
                         className="w-4 h-4 rounded" style={{ accentColor: cs.accentColor }}
                       />
-                      <span style={{ color: cs.bodyText, fontFamily: `"${cs.fontFamily}", sans-serif` }}>{opt}</span>
+                      <span style={{ color: cs.bodyText, fontFamily: 'inherit' }}>{opt}</span>
                     </label>
                   ))}
                 </div>
@@ -294,12 +330,12 @@ export default function PublicForm({ form, customStyles: rawStyles }: { form: an
         })}
 
         {/* Submit */}
-        <div className="pt-6 mt-8" style={{ borderTop: `1.5px solid ${cs.inputBorderColor}` }}>
+        <div className="pt-6 mt-4" style={{ borderTop: `1.5px solid ${cs.inputBorderColor}` }}>
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-4 px-6 rounded-xl text-lg font-bold transition-all disabled:opacity-60 hover:opacity-90 active:scale-[0.99]"
-            style={{ background: cs.accentColor, color: cs.buttonText, fontFamily: `"${cs.fontFamily}", sans-serif`, boxShadow: `0 4px 20px ${cs.accentColor}40` }}
+            className="w-full py-4 px-6 text-lg font-bold transition-all disabled:opacity-60 hover:opacity-95 active:scale-[0.99] shadow-md hover:shadow-lg"
+            style={{ background: cs.accentColor, color: cs.buttonText, fontFamily: 'inherit', borderRadius: btnRadius }}
           >
             {loading ? (
               <span className="flex items-center justify-center gap-2">
