@@ -63,6 +63,8 @@ export async function PUT(
         title: updates.title,
         description: updates.description,
         published: updates.published,
+        logo_url: updates.logo_url,
+        cover_image_url: updates.cover_image_url,
         updated_at: new Date().toISOString()
       })
       .eq('id', id)

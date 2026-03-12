@@ -133,7 +133,7 @@ function ColorPicker({ label, value, onChange }: { label: string; value: string;
 
 // Inline form renderer for the builder canvas — identical to PublicForm
 function FormCanvas({
-  form, fields, customStyles, onUpdateField, onRemoveField, onAddOption, onRemoveOption, onUpdateOption, onUpdateForm, selectedFieldIndex, onSelectField
+  form, fields, customStyles, onUpdateField, onRemoveField, onAddOption, onRemoveOption, onUpdateOption, onUpdateForm, onMoveField, onDuplicateField, selectedFieldIndex, onSelectField
 }: {
   form: any
   fields: FormField[]
@@ -144,6 +144,8 @@ function FormCanvas({
   onRemoveOption: (idx: number, oi: number) => void
   onUpdateOption: (idx: number, oi: number, v: string) => void
   onUpdateForm: (u: any) => void
+  onMoveField: (from: number, to: number) => void
+  onDuplicateField: (index: number) => void
   selectedFieldIndex: number | null
   onSelectField: (idx: number | null) => void
 }) {
@@ -208,10 +210,23 @@ function FormCanvas({
     <div style={{ ...vars, maxWidth: `${customStyles.containerWidth}px`, margin: '0 auto', boxShadow: customStyles.boxShadow, borderRadius: `${customStyles.borderRadius}px`, overflow: 'hidden' }} className="w-full transition-all duration-300">
       {fontUrl && <link rel="stylesheet" href={fontUrl} />}
 
+      {/* COVER IMAGE PREVIEW */}
+      {form.cover_image_url && (
+        <div className="w-full h-40 overflow-hidden bg-gray-200 border-b border-gray-100">
+          <img src={form.cover_image_url} alt="Cover" className="w-full h-full object-cover" />
+        </div>
+      )}
+
       <div
         className="relative"
         style={{ background: `var(--form-header-bg)`, padding: `var(--form-padding)` }}
       >
+        {/* LOGO PREVIEW */}
+        {form.logo_url && (
+          <div className="mb-6 flex">
+            <img src={form.logo_url} alt="Logo" className="max-h-12 w-auto object-contain" />
+          </div>
+        )}
         <input
           type="text"
           value={form.title || ''}
@@ -249,150 +264,175 @@ function FormCanvas({
             return (
               <div
                 key={index}
-                onClick={() => onSelectField(isSelected ? null : index)}
-                className={`group relative rounded-2xl transition-all duration-150 cursor-pointer ${isSelected ? 'ring-2 ring-indigo-500 bg-indigo-50/30' : 'hover:ring-1 hover:ring-gray-300 hover:bg-gray-50/50'}`}
-                style={{ padding: '1rem', margin: '-1rem' }}
+                onClick={(e) => { e.stopPropagation(); onSelectField(index); }}
+                className={`group relative p-6 rounded-2xl border-2 transition-all ${isSelected ? 'border-indigo-500 bg-indigo-50/30 shadow-sm' : 'border-transparent hover:bg-gray-50'}`}
               >
-                {/* Field Controls */}
+                {/* REORDER CONTROLS */}
+                <div className="absolute -left-10 top-1/2 -translate-y-1/2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); if (index > 0) onMoveField(index, index - 1); }}
+                    disabled={index === 0}
+                    title="Move Up"
+                    className="p-1.5 bg-white border border-gray-200 rounded-lg text-gray-400 hover:text-indigo-600 hover:border-indigo-200 hover:shadow-md disabled:opacity-20 shadow-sm transition-all"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 15l7-7 7 7" /></svg>
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); if (index < fields.length - 1) onMoveField(index, index + 1); }}
+                    disabled={index === fields.length - 1}
+                    title="Move Down"
+                    className="p-1.5 bg-white border border-gray-200 rounded-lg text-gray-400 hover:text-indigo-600 hover:border-indigo-200 hover:shadow-md disabled:opacity-20 shadow-sm transition-all"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" /></svg>
+                  </button>
+                </div>
+
+                {/* FIELD ACTIONS */}
                 <div
-                  className={`absolute -top-3 right-2 flex items-center gap-1 transition-all ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+                  className={`absolute -top-3 right-2 flex items-center gap-1.5 transition-all ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
                   style={{ zIndex: 20 }}
-                  onClick={e => e.stopPropagation()}
                 >
-                  <span className="bg-indigo-600 text-white text-xs px-2 py-0.5 rounded-full font-medium pointer-events-none">
+                  <span className="bg-indigo-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider shadow-sm pointer-events-none">
                     {field.type}
                   </span>
-                  <label className="flex items-center gap-1 bg-white text-xs px-2 py-1 rounded-full border border-gray-200 shadow-sm cursor-pointer">
+                  
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDuplicateField(index);
+                    }}
+                    title="Duplicate"
+                    className="p-1.5 bg-white border border-gray-200 rounded-lg text-gray-400 hover:text-indigo-600 hover:border-indigo-200 shadow-sm transition-all"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" /></svg>
+                  </button>
+
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onRemoveField(index); }}
+                    title="Delete"
+                    className="p-1.5 bg-white border border-gray-200 rounded-lg text-gray-400 hover:text-red-500 hover:border-red-200 shadow-sm transition-all"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                  </button>
+
+                  <label className="flex items-center gap-1 bg-white text-[10px] px-2 py-1 rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:border-indigo-200 transition-colors" onClick={e => e.stopPropagation()}>
                     <input
                       type="checkbox"
                       checked={field.required}
                       onChange={e => onUpdateField(index, { required: e.target.checked })}
-                      className="w-3 h-3 text-indigo-600"
+                      className="w-3 h-3 text-indigo-600 rounded"
                     />
-                    <span className="text-gray-600 font-medium">Required</span>
+                    <span className="text-gray-600 font-bold uppercase tracking-tighter">Req</span>
                   </label>
-                  <button
-                    onClick={() => onRemoveField(index)}
-                    className="bg-white border border-red-100 text-red-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-full shadow-sm transition-colors"
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
                 </div>
 
-                {/* Label — editable */}
-                <div className="mb-3">
+                {/* LABEL AREA */}
+                <div className="mb-4">
                   <div style={labelStyle} className="flex items-center gap-2">
                     <input
                       type="text"
                       value={field.label}
                       onChange={e => { e.stopPropagation(); onUpdateField(index, { label: e.target.value }) }}
                       onClick={e => e.stopPropagation()}
-                      className="w-full outline-none bg-transparent font-bold border-b border-transparent focus:border-current transition-colors"
-                      style={{ color: `var(--form-label)`, fontFamily: 'inherit', fontSize: 'inherit' }}
-                      placeholder="Question label..."
+                      className="w-full outline-none bg-transparent font-bold border-b border-transparent focus:border-indigo-400/30 transition-colors"
+                      style={{ color: `var(--form-label)`, fontFamily: 'inherit', fontSize: '1.1em' }}
+                      placeholder="Enter your question..."
                     />
-                    {field.required && <span style={{ color: `var(--form-accent)` }}>*</span>}
+                    {field.required && <span style={{ color: `var(--form-accent)` }} className="text-xl">*</span>}
                   </div>
                 </div>
 
-                {/* Placeholder input for text-like fields */}
+                {/* PLACEHOLDER / HINT EDITOR */}
                 {isSelected && ['text', 'email', 'number', 'textarea'].includes(field.type) && (
-                  <div className="mb-3 flex items-center gap-2 bg-indigo-50 rounded-lg px-3 py-2 text-xs" onClick={e => e.stopPropagation()}>
-                    <span className="text-indigo-400 font-semibold uppercase tracking-wider shrink-0">Placeholder</span>
+                  <div className="mb-4 flex items-center gap-2 bg-indigo-50/50 rounded-xl px-4 py-2 text-xs border border-indigo-100" onClick={e => e.stopPropagation()}>
+                    <span className="text-indigo-400 font-bold uppercase tracking-widest shrink-0">Hint</span>
                     <input
                       type="text"
                       value={field.placeholder || ''}
                       onChange={e => onUpdateField(index, { placeholder: e.target.value })}
-                      className="flex-1 outline-none bg-transparent text-indigo-700 font-medium"
-                      placeholder="Enter hint text..."
+                      className="flex-1 outline-none bg-transparent text-indigo-700 font-medium italic"
+                      placeholder="e.g. Enter your full name..."
                     />
                   </div>
                 )}
 
-                {/* Field Renders */}
-                {field.type === 'text' && (
-                  <input type="text" placeholder={field.placeholder || 'Your answer...'} className={inputCls} style={getInternalInputStyle()} readOnly />
-                )}
-                {field.type === 'email' && (
-                  <input type="email" placeholder={field.placeholder || 'name@example.com'} className={inputCls} style={getInternalInputStyle()} readOnly />
-                )}
-                {field.type === 'number' && (
-                  <input type="number" placeholder={field.placeholder || '0'} className={inputCls} style={getInternalInputStyle()} readOnly />
-                )}
-                {field.type === 'textarea' && (
-                  <textarea rows={4} placeholder={field.placeholder || 'Your answer...'} className={`${inputCls} resize-y`} style={getInternalInputStyle()} readOnly />
-                )}
-                {field.type === 'select' && (
-                  <div className="relative">
-                    <select className={`${inputCls} appearance-none`} style={getInternalInputStyle()} disabled>
-                      <option value="">Select an option...</option>
-                      {field.options?.map((o, i) => <option key={i}>{o}</option>)}
-                    </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center" style={{ color: customStyles.accentColor }}>
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
-                    </div>
-                  </div>
-                )}
-                {field.type === 'multiselect' && (
-                  <select multiple className={`${inputCls} min-h-[130px]`} style={getInternalInputStyle()} disabled>
-                    {field.options?.map((o, i) => <option key={i}>{o}</option>)}
-                  </select>
-                )}
-
-                {/* Inline option editing for choice fields */}
-                {['select', 'multiselect', 'radio', 'checkbox'].includes(field.type) && (
-                  <div className="mt-3 space-y-2" onClick={e => e.stopPropagation()}>
-                    {field.options?.map((opt, oi) => (
-                      <div key={oi} className={`flex items-center gap-3 px-3 py-2 rounded-xl`} style={{ background: customStyles.inputBg, border: `1.5px solid ${customStyles.inputBorderColor}` }}>
-                        {field.type === 'radio' && (
-                          <div className="w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center" style={{ borderColor: customStyles.accentColor }}>
-                            <div className="w-2 h-2 rounded-full opacity-0" style={{ background: customStyles.accentColor }} />
-                          </div>
-                        )}
-                        {field.type === 'checkbox' && (
-                          <div className="w-4 h-4 rounded border-2 shrink-0" style={{ borderColor: customStyles.accentColor }} />
-                        )}
-                        {['select', 'multiselect'].includes(field.type) && (
-                          <span className="text-xs font-bold opacity-40" style={{ color: customStyles.bodyText }}>{oi + 1}.</span>
-                        )}
-                        <input
-                          type="text"
-                          value={opt}
-                          onChange={e => onUpdateOption(index, oi, e.target.value)}
-                          className="flex-1 outline-none bg-transparent font-medium text-sm border-b border-transparent focus:border-current transition-colors"
-                          style={{ color: customStyles.bodyText, fontFamily: 'inherit' }}
-                          placeholder={`Option ${oi + 1}`}
-                        />
-                        <button onClick={() => onRemoveOption(index, oi)} className="text-gray-300 hover:text-red-400 shrink-0">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
-                        </button>
+                {/* FIELD PREVIEW RENDER */}
+                <div className="relative group/field" style={{ pointerEvents: 'none' }}>
+                  {field.type === 'text' && (
+                    <input type="text" placeholder={field.placeholder || 'Text answer...'} className={inputCls} style={getInternalInputStyle()} readOnly />
+                  )}
+                  {field.type === 'email' && (
+                    <input type="email" placeholder={field.placeholder || 'email@example.com'} className={inputCls} style={getInternalInputStyle()} readOnly />
+                  )}
+                  {field.type === 'number' && (
+                    <input type="number" placeholder={field.placeholder || '000'} className={inputCls} style={getInternalInputStyle()} readOnly />
+                  )}
+                  {field.type === 'textarea' && (
+                    <textarea rows={3} placeholder={field.placeholder || 'Long answer...'} className={`${inputCls} resize-none`} style={getInternalInputStyle()} readOnly />
+                  )}
+                  {field.type === 'select' && (
+                    <div className="relative">
+                      <div className={inputCls} style={getInternalInputStyle()}>Select an option...</div>
+                      <div className="absolute inset-y-0 right-4 flex items-center" style={{ color: `var(--form-accent)` }}>
+                        <svg className="w-5 h-5 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" /></svg>
                       </div>
-                    ))}
-                    <button onClick={() => onAddOption(index)} className="flex items-center gap-2 text-sm font-semibold px-3 py-1.5 rounded-xl transition-all hover:opacity-80"
-                      style={{ background: customStyles.accentColor + '18', color: customStyles.accentColor }}>
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" /></svg>
-                      Add Choice
-                    </button>
-                  </div>
-                )}
+                    </div>
+                  )}
+                  {/* MULTI/RADIO/CHECKBOX RENDERER */}
+                  {['radio', 'checkbox', 'multiselect'].includes(field.type) && (
+                    <div className="space-y-2 mt-1 px-1">
+                      {field.options?.map((o, i) => (
+                        <div key={i} className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 bg-white/50 text-sm font-medium text-gray-600">
+                          <div className={`w-4 h-4 border-2 rounded-full ${field.type === 'checkbox' ? 'rounded-md' : 'rounded-full'}`} style={{ borderColor: customStyles.accentColor }} />
+                          {o}
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
-                {['file', 'multifile'].includes(field.type) && (
-                  <div className="flex flex-col items-center justify-center w-full h-40 rounded-xl border-2 border-dashed transition-colors"
-                    style={{ borderColor: customStyles.accentColor + '55', background: customStyles.accentColor + '08' }}>
-                    <svg className="w-10 h-10 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: customStyles.accentColor }}>
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                    </svg>
-                    <p className="text-sm font-semibold" style={{ color: customStyles.accentColor }}>
-                      Click to upload {field.type === 'multifile' ? 'files' : 'a file'}
-                    </p>
-                    <p className="text-xs mt-1 opacity-60" style={{ color: customStyles.bodyText }}>PNG, JPG, PDF up to 50MB</p>
+                  {['file', 'multifile'].includes(field.type) && (
+                    <div className="flex flex-col items-center justify-center w-full py-8 border-2 border-dashed rounded-2xl bg-gray-50/50" style={{ borderColor: customStyles.inputBorderColor }}>
+                      <svg className="w-8 h-8 mb-2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+                      <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">File Upload Preview</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* OPTIONS EDITOR (For Multiple Choice) */}
+                {isSelected && ['select', 'multiselect', 'radio', 'checkbox'].includes(field.type) && (
+                  <div className="mt-6 pt-6 border-t border-indigo-100/50" onClick={e => e.stopPropagation()}>
+                    <p className="text-[10px] font-extrabold text-indigo-400 uppercase tracking-widest mb-4">Edit Options</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {field.options?.map((option, oi) => (
+                        <div key={oi} className="flex items-center gap-2 group/opt transition-all">
+                          <input
+                            type="text"
+                            value={option}
+                            onChange={e => onUpdateOption(index, oi, e.target.value)}
+                            className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs focus:ring-1 focus:ring-indigo-400 outline-none font-medium"
+                          />
+                          <button
+                            onClick={() => onRemoveOption(index, oi)}
+                            className="p-1.5 opacity-0 group-hover/opt:opacity-100 text-gray-300 hover:text-red-500 transition-all"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        onClick={() => onAddOption(index)}
+                        className="flex items-center justify-center gap-2 py-2 border-2 border-dashed border-indigo-100 rounded-xl text-indigo-400 hover:bg-indigo-50 hover:border-indigo-200 transition-all text-[10px] font-bold uppercase tracking-wider"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" /></svg>
+                        Add Option
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
             )
           })
+
         )}
 
         {/* Submit Button Preview */}
@@ -502,6 +542,25 @@ export default function EditFormPage({ params }: { params: Promise<{ id: string 
     })
   }
 
+  const moveField = (from: number, to: number) => {
+    setFields(prev => {
+      const n = [...prev]
+      const [removed] = n.splice(from, 1)
+      n.splice(to, 0, removed)
+      return n
+    })
+    setSelectedFieldIndex(to)
+  }
+
+  const duplicateField = (index: number) => {
+    setFields(prev => {
+      const n = [...prev]
+      n.splice(index + 1, 0, { ...n[index] })
+      return n
+    })
+    setSelectedFieldIndex(index + 1)
+  }
+
   const updateStyles = (updates: Partial<CustomStyles>) => {
     setCustomStyles(prev => ({ ...prev, ...updates }))
   }
@@ -520,7 +579,13 @@ export default function EditFormPage({ params }: { params: Promise<{ id: string 
       await fetch(`/api/forms/${resolvedParams.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: form.title, description: descWithStyles, published: form.published })
+        body: JSON.stringify({ 
+          title: form.title, 
+          description: descWithStyles, 
+          published: form.published,
+          logo_url: form.logo_url,
+          cover_image_url: form.cover_image_url
+        })
       })
 
       const res = await fetch(`/api/forms/${resolvedParams.id}/fields`, {
@@ -723,7 +788,34 @@ export default function EditFormPage({ params }: { params: Promise<{ id: string 
           {/* DESIGN TAB */}
           {sidebarTab === 'design' && (
             <div className="p-4 flex flex-col gap-5">
-              {/* Font */}
+              {/* Branding Section */}
+              <div>
+                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-3">Branding & Assets</p>
+                <div className="space-y-4 bg-gray-50 rounded-xl p-3 border border-gray-100">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase">Logo URL (Optional)</label>
+                    <input
+                      type="text"
+                      placeholder="https://..."
+                      value={form?.logo_url || ''}
+                      onChange={e => setForm({ ...form, logo_url: e.target.value })}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-xs focus:border-indigo-400 focus:outline-none"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase">Cover Image (Optional)</label>
+                    <input
+                      type="text"
+                      placeholder="https://..."
+                      value={form?.cover_image_url || ''}
+                      onChange={e => setForm({ ...form, cover_image_url: e.target.value })}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-xs focus:border-indigo-400 focus:outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Typography */}
               <div>
                 <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-3">Typography</p>
                 <select
@@ -997,6 +1089,8 @@ export default function EditFormPage({ params }: { params: Promise<{ id: string 
                 onRemoveOption={removeOption}
                 onUpdateOption={updateOption}
                 onUpdateForm={(u) => setForm({ ...form, ...u })}
+                onMoveField={moveField}
+                onDuplicateField={duplicateField}
                 selectedFieldIndex={selectedFieldIndex}
                 onSelectField={setSelectedFieldIndex}
               />

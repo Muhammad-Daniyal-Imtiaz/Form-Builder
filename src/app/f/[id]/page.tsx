@@ -82,13 +82,40 @@ export default async function PublicFormPage({
           boxShadow: customStyles.boxShadow,
           borderRadius: `${customStyles.borderRadius}px`,
           fontFamily: `"${customStyles.fontFamily}", sans-serif`,
-          fontSize: `${customStyles.fontSizeBase}px`
+          fontSize: `${customStyles.fontSizeBase}px`,
+          background: customStyles.bodyBg
         }}
       >
+        {/* COVER IMAGE */}
+        {form.cover_image_url && (
+          <div className="w-full h-48 sm:h-64 overflow-hidden bg-gray-200">
+            <img
+              src={form.cover_image_url}
+              alt="Cover"
+              className="w-full h-full object-cover"
+            />
+          </div>
+        )}
+
         {/* FORM HEADER */}
         <div
-          style={{ background: customStyles.headerBg, padding: `${customStyles.containerPadding}px` }}
+          style={{
+            background: customStyles.headerBg,
+            padding: `${customStyles.containerPadding}px`,
+            position: 'relative'
+          }}
         >
+          {/* LOGO */}
+          {form.logo_url && (
+            <div className="mb-6">
+              <img
+                src={form.logo_url}
+                alt="Logo"
+                className="max-h-12 w-auto object-contain"
+              />
+            </div>
+          )}
+
           <h1
             className="text-3xl sm:text-4xl font-extrabold tracking-tight"
             style={{ color: customStyles.headerText }}
