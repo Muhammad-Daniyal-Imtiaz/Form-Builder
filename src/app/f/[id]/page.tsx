@@ -20,6 +20,13 @@ const DEFAULT_STYLES = {
   borderRadius: 16,
   boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
   fontSizeBase: 16,
+  logoHeight: 48,
+  logoAlignment: 'left',
+  logoBorderRadius: 8,
+  coverHeight: 240,
+  pageBgColor: '#f3f4f6',
+  pageBgImage: '',
+  headerAlignment: 'left',
 }
 
 export default async function PublicFormPage({
@@ -72,8 +79,16 @@ export default async function PublicFormPage({
     : null
 
   return (
-    <div className="min-h-screen py-12 px-4 sm:px-6" style={{ background: '#f3f4f6' }}>
-      {fontUrl && <link rel="stylesheet" href={fontUrl} />}
+    <div 
+      className="min-h-screen py-12 px-4 sm:px-6 transition-all duration-300" 
+      style={{ 
+        backgroundColor: customStyles.pageBgColor,
+        backgroundImage: customStyles.pageBgImage ? `url(${customStyles.pageBgImage})` : 'none',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundAttachment: 'fixed'
+      }}
+    >
 
       <div
         className="mx-auto overflow-hidden transition-all duration-300"
@@ -88,7 +103,10 @@ export default async function PublicFormPage({
       >
         {/* COVER IMAGE */}
         {form.cover_image_url && (
-          <div className="w-full h-48 sm:h-64 overflow-hidden bg-gray-200">
+          <div 
+            className="w-full overflow-hidden bg-gray-200"
+            style={{ height: `${customStyles.coverHeight}px` }}
+          >
             <img
               src={form.cover_image_url}
               alt="Cover"
@@ -102,16 +120,26 @@ export default async function PublicFormPage({
           style={{
             background: customStyles.headerBg,
             padding: `${customStyles.containerPadding}px`,
-            position: 'relative'
+            position: 'relative',
+            textAlign: (customStyles as any).headerAlignment || 'left'
           }}
         >
           {/* LOGO */}
           {form.logo_url && (
-            <div className="mb-6">
+            <div 
+              className="mb-6 flex"
+              style={{ 
+                justifyContent: customStyles.logoAlignment === 'center' ? 'center' : customStyles.logoAlignment === 'right' ? 'flex-end' : 'flex-start' 
+              }}
+            >
               <img
                 src={form.logo_url}
                 alt="Logo"
-                className="max-h-12 w-auto object-contain"
+                className="object-contain"
+                style={{ 
+                  height: `${customStyles.logoHeight}px`,
+                  borderRadius: `${customStyles.logoBorderRadius}px`
+                }}
               />
             </div>
           )}

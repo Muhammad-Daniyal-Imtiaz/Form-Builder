@@ -36,6 +36,15 @@ export interface CustomStyles {
   labelWeight: string // 'normal' | 'semibold' | 'bold'
   buttonStyle: 'rounded' | 'pill' | 'square'
   inputVariant: 'outline' | 'filled' | 'underline'
+  // Branding Customization
+  logoHeight: number
+  logoAlignment: 'left' | 'center' | 'right'
+  logoBorderRadius: number
+  coverHeight: number
+  // Advanced Branding
+  pageBgColor: string
+  pageBgImage: string
+  headerAlignment: 'left' | 'center' | 'right'
 }
 
 const DEFAULT_STYLES: CustomStyles = {
@@ -58,6 +67,13 @@ const DEFAULT_STYLES: CustomStyles = {
   labelWeight: 'bold',
   buttonStyle: 'rounded',
   inputVariant: 'outline',
+  logoHeight: 48,
+  logoAlignment: 'left',
+  logoBorderRadius: 8,
+  coverHeight: 240,
+  pageBgColor: '#f3f4f6',
+  pageBgImage: '',
+  headerAlignment: 'left',
 }
 
 const THEME_PRESETS: Record<string, { name: string; desc: string; emoji: string; styles: CustomStyles }> = {
@@ -67,31 +83,99 @@ const THEME_PRESETS: Record<string, { name: string; desc: string; emoji: string;
   },
   modern: {
     name: 'Modern Soft', desc: 'Large padding & round', emoji: '☁️',
-    styles: { ...DEFAULT_STYLES, borderRadius: 32, containerPadding: 56, boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)' }
+    styles: { 
+      ...DEFAULT_STYLES, 
+      borderRadius: 32, 
+      containerPadding: 56, 
+      boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+      logoAlignment: 'center',
+      headerAlignment: 'center'
+    }
   },
   ocean: {
     name: 'Ocean Breeze', desc: 'Cool teal gradients', emoji: '🌊',
-    styles: { ...DEFAULT_STYLES, headerBg: '#0f766e', headerText: '#fff', bodyBg: '#f0fdfa', bodyText: '#134e4a', accentColor: '#0d9488', buttonText: '#fff', inputBorderColor: '#99f6e4', inputBg: '#f0fdfa', labelColor: '#0f766e' }
+    styles: { 
+      ...DEFAULT_STYLES, 
+      headerBg: '#0f766e', 
+      headerText: '#fff', 
+      bodyBg: '#f0fdfa', 
+      bodyText: '#134e4a', 
+      accentColor: '#0d9488', 
+      buttonText: '#fff', 
+      inputBorderColor: '#99f6e4', 
+      inputBg: '#f0fdfa', 
+      labelColor: '#0f766e',
+      pageBgColor: '#e0f2f1'
+    }
   },
   dark: {
     name: 'Night Mode', desc: 'Sleek dark interface', emoji: '🌙',
-    styles: { ...DEFAULT_STYLES, headerBg: '#1e1b4b', headerText: '#c4b5fd', bodyBg: '#111827', bodyText: '#e5e7eb', accentColor: '#7c3aed', buttonText: '#fff', inputBorderColor: '#374151', inputBg: '#1f2937', labelColor: '#d1d5db', boxShadow: '0 0 20px rgba(0,0,0,0.5)' }
+    styles: { 
+      ...DEFAULT_STYLES, 
+      headerBg: '#1e1b4b', 
+      headerText: '#c4b5fd', 
+      bodyBg: '#111827', 
+      bodyText: '#e5e7eb', 
+      accentColor: '#7c3aed', 
+      buttonText: '#fff', 
+      inputBorderColor: '#374151', 
+      inputBg: '#1f2937', 
+      labelColor: '#d1d5db', 
+      boxShadow: '0 0 20px rgba(0,0,0,0.5)',
+      pageBgColor: '#030712',
+      logoBorderRadius: 100
+    }
   },
   elegant: {
     name: 'Noble Serif', desc: 'Refined & classic', emoji: '✒️',
-    styles: { ...DEFAULT_STYLES, headerBg: '#f5f5f0', headerText: '#1c1917', bodyBg: '#fafaf9', bodyText: '#292524', accentColor: '#292524', buttonText: '#fff', fontFamily: 'Merriweather', inputBorderColor: '#d6d3d1', inputBg: '#fafaf9', labelColor: '#44403c', borderRadius: 0 }
+    styles: { 
+      ...DEFAULT_STYLES, 
+      headerBg: '#f5f5f0', 
+      headerText: '#1c1917', 
+      bodyBg: '#fafaf9', 
+      bodyText: '#292524', 
+      accentColor: '#292524', 
+      buttonText: '#fff', 
+      fontFamily: 'Merriweather', 
+      inputBorderColor: '#d6d3d1', 
+      inputBg: '#fafaf9', 
+      labelColor: '#44403c', 
+      borderRadius: 0,
+      pageBgColor: '#e7e5e4'
+    }
   },
   glass: {
     name: 'Glassmorphism', desc: 'Frosted & modern', emoji: '💎',
-    styles: { ...DEFAULT_STYLES, headerBg: 'rgba(255,255,255,0.8)', headerText: '#1e1b4b', bodyBg: 'rgba(255,255,255,0.4)', bodyText: '#1e1b4b', accentColor: '#6366f1', buttonText: '#fff', inputBg: 'rgba(255,255,255,0.5)', inputBorderColor: 'rgba(255,255,255,0.2)', boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37)' }
+    styles: { 
+      ...DEFAULT_STYLES, 
+      headerBg: 'rgba(255,255,255,0.8)', 
+      headerText: '#1e1b4b', 
+      bodyBg: 'rgba(255,255,255,0.4)', 
+      bodyText: '#1e1b4b', 
+      accentColor: '#6366f1', 
+      buttonText: '#fff', 
+      inputBg: 'rgba(255,255,255,0.5)', 
+      inputBorderColor: 'rgba(255,255,255,0.2)', 
+      boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37)' 
+    }
   },
   brutal: {
     name: 'Brutalism', desc: 'High contrast & bold', emoji: '🔳',
-    styles: { ...DEFAULT_STYLES, headerBg: '#000', headerText: '#fff', bodyBg: '#fff', bodyText: '#000', accentColor: '#fbbf24', buttonText: '#000', inputBorderColor: '#000', borderRadius: 0, boxShadow: '8px 8px 0px 0px #000', labelWeight: 'bold' }
-  },
-  eco: {
-    name: 'Eco Green', desc: 'Organic & earthy', emoji: '🌿',
-    styles: { ...DEFAULT_STYLES, headerBg: '#064e3b', headerText: '#ecfdf5', bodyBg: '#f0fdf4', bodyText: '#064e3b', accentColor: '#10b981', buttonText: '#fff', inputBorderColor: '#a7f3d0', inputBg: '#fff', borderRadius: 24 }
+    styles: { 
+      ...DEFAULT_STYLES, 
+      headerBg: '#000', 
+      headerText: '#fff', 
+      bodyBg: '#fff', 
+      bodyText: '#000', 
+      accentColor: '#fbbf24', 
+      buttonText: '#000', 
+      inputBorderColor: '#000', 
+      borderRadius: 0, 
+      boxShadow: '8px 8px 0px 0px #000', 
+      labelWeight: 'bold',
+      logoBorderRadius: 0,
+      pageBgColor: '#fbbf24'
+    }
   },
 }
 
@@ -170,6 +254,10 @@ function FormCanvas({
     '--form-spacing': `${customStyles.fieldSpacing}px`,
     '--form-label-weight': customStyles.labelWeight === 'bold' ? '700' : customStyles.labelWeight === 'semibold' ? '600' : '400',
     '--form-btn-radius': customStyles.buttonStyle === 'pill' ? '9999px' : customStyles.buttonStyle === 'square' ? '0px' : '0.75rem',
+    '--form-logo-height': `${customStyles.logoHeight}px`,
+    '--form-logo-radius': `${customStyles.logoBorderRadius}px`,
+    '--form-cover-height': `${customStyles.coverHeight}px`,
+    '--form-header-align': customStyles.headerAlignment,
     fontFamily: `"${customStyles.fontFamily}", sans-serif`,
     fontSize: `${customStyles.fontSizeBase}px`,
   } as React.CSSProperties
@@ -212,19 +300,39 @@ function FormCanvas({
 
       {/* COVER IMAGE PREVIEW */}
       {form.cover_image_url && (
-        <div className="w-full h-40 overflow-hidden bg-gray-200 border-b border-gray-100">
+        <div 
+          className="w-full overflow-hidden bg-gray-200 border-b border-gray-100"
+          style={{ height: 'var(--form-cover-height)' }}
+        >
           <img src={form.cover_image_url} alt="Cover" className="w-full h-full object-cover" />
         </div>
       )}
 
       <div
         className="relative"
-        style={{ background: `var(--form-header-bg)`, padding: `var(--form-padding)` }}
+        style={{ 
+          background: `var(--form-header-bg)`, 
+          padding: `var(--form-padding)`,
+          textAlign: customStyles.headerAlignment as any
+        }}
       >
         {/* LOGO PREVIEW */}
         {form.logo_url && (
-          <div className="mb-6 flex">
-            <img src={form.logo_url} alt="Logo" className="max-h-12 w-auto object-contain" />
+          <div 
+            className="mb-6 flex"
+            style={{ 
+              justifyContent: customStyles.logoAlignment === 'center' ? 'center' : customStyles.logoAlignment === 'right' ? 'flex-end' : 'flex-start' 
+            }}
+          >
+            <img 
+              src={form.logo_url} 
+              alt="Logo" 
+              className="object-contain transition-all" 
+              style={{ 
+                height: 'var(--form-logo-height)', 
+                borderRadius: 'var(--form-logo-radius)' 
+              }} 
+            />
           </div>
         )}
         <input
@@ -790,27 +898,128 @@ export default function EditFormPage({ params }: { params: Promise<{ id: string 
             <div className="p-4 flex flex-col gap-5">
               {/* Branding Section */}
               <div>
-                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-3">Branding & Assets</p>
-                <div className="space-y-4 bg-gray-50 rounded-xl p-3 border border-gray-100">
+                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-3" id="branding-heading">Branding & Assets</p>
+                <div className="space-y-5 bg-gray-50 rounded-2xl p-4 border border-gray-100 shadow-sm" aria-labelledby="branding-heading">
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase">Logo URL (Optional)</label>
+                    <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1">
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                      Logo URL
+                    </label>
                     <input
                       type="text"
-                      placeholder="https://..."
+                      placeholder="https://company.com/logo.png"
                       value={form?.logo_url || ''}
                       onChange={e => setForm({ ...form, logo_url: e.target.value })}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-xs focus:border-indigo-400 focus:outline-none"
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-xs focus:ring-1 focus:ring-indigo-400 focus:outline-none transition-all"
                     />
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase">Cover Image (Optional)</label>
+
+                  {form?.logo_url && (
+                    <div className="space-y-4 pt-2 border-t border-gray-100">
+                      <div>
+                        <div className="flex justify-between items-center mb-1.5">
+                          <label className="text-[10px] font-bold text-gray-400 uppercase">Logo Height</label>
+                          <span className="text-[10px] font-bold text-indigo-500">{customStyles.logoHeight}px</span>
+                        </div>
+                        <input
+                          type="range" min="20" max="150" value={customStyles.logoHeight}
+                          onChange={e => updateStyles({ logoHeight: parseInt(e.target.value) })}
+                          className="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="text-[10px] font-bold text-gray-400 uppercase mb-2 block">Logo Alignment</label>
+                        <div className="grid grid-cols-3 gap-1 bg-white rounded-lg p-1 border border-gray-200">
+                          {(['left', 'center', 'right'] as const).map(align => (
+                            <button
+                              key={align}
+                              onClick={() => updateStyles({ logoAlignment: align })}
+                              className={`text-[9px] font-bold py-1 px-2 rounded-md transition-all ${customStyles.logoAlignment === align ? 'bg-indigo-500 text-white shadow-sm' : 'text-gray-400 hover:bg-gray-50'}`}
+                            >
+                              {align.toUpperCase()}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="flex justify-between items-center mb-1.5">
+                          <label className="text-[10px] font-bold text-gray-400 uppercase">Logo Rounding</label>
+                          <span className="text-[10px] font-bold text-indigo-500">{customStyles.logoBorderRadius}px</span>
+                        </div>
+                        <input
+                          type="range" min="0" max="50" value={customStyles.logoBorderRadius}
+                          onChange={e => updateStyles({ logoBorderRadius: parseInt(e.target.value) })}
+                          className="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-1.5 pt-2 border-t border-gray-100">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1">
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                      Cover Image URL
+                    </label>
                     <input
                       type="text"
-                      placeholder="https://..."
+                      placeholder="https://images.unsplash.com/..."
                       value={form?.cover_image_url || ''}
                       onChange={e => setForm({ ...form, cover_image_url: e.target.value })}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-xs focus:border-indigo-400 focus:outline-none"
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-xs focus:ring-1 focus:ring-indigo-400 focus:outline-none transition-all"
                     />
+                  </div>
+
+                  {form?.cover_image_url && (
+                    <div className="pt-2 border-t border-gray-100">
+                      <div className="flex justify-between items-center mb-1.5">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase">Banner Height</label>
+                        <span className="text-[10px] font-bold text-indigo-500">{customStyles.coverHeight}px</span>
+                      </div>
+                      <input
+                        type="range" min="100" max="500" value={customStyles.coverHeight}
+                        onChange={e => updateStyles({ coverHeight: parseInt(e.target.value) })}
+                        className="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Page Background */}
+              <div>
+                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-3">Page Environment</p>
+                <div className="space-y-4 bg-gray-50 rounded-2xl p-4 border border-gray-100 shadow-sm">
+                  <ColorPicker label="Page Background" value={customStyles.pageBgColor} onChange={v => updateStyles({ pageBgColor: v })} />
+                  <div className="space-y-1.5 pt-2 border-t border-gray-100">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase">Background Image URL</label>
+                    <input
+                      type="text"
+                      placeholder="https://background.com/img.jpg"
+                      value={customStyles.pageBgImage}
+                      onChange={e => updateStyles({ pageBgImage: e.target.value })}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-xs focus:ring-1 focus:ring-indigo-400 focus:outline-none transition-all"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Header Layout */}
+              <div>
+                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-3">Header Layout</p>
+                <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 shadow-sm">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase mb-2 block">Text Alignment</label>
+                  <div className="grid grid-cols-3 gap-1 bg-white rounded-lg p-1 border border-gray-200">
+                    {(['left', 'center', 'right'] as const).map(align => (
+                      <button
+                        key={align}
+                        onClick={() => updateStyles({ headerAlignment: align })}
+                        className={`text-[9px] font-bold py-1 px-2 rounded-md transition-all ${customStyles.headerAlignment === align ? 'bg-indigo-500 text-white shadow-sm' : 'text-gray-400 hover:bg-gray-50'}`}
+                      >
+                        {align.toUpperCase()}
+                      </button>
+                    ))}
                   </div>
                 </div>
               </div>

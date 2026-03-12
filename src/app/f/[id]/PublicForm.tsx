@@ -23,6 +23,13 @@ interface CustomStyles {
   labelWeight: string
   buttonStyle: 'rounded' | 'pill' | 'square'
   inputVariant: 'outline' | 'filled' | 'underline'
+  logoHeight: number
+  logoAlignment: 'left' | 'center' | 'right'
+  logoBorderRadius: number
+  coverHeight: number
+  pageBgColor: string
+  pageBgImage: string
+  headerAlignment: 'left' | 'center' | 'right'
 }
 
 const DEFAULT_STYLES: CustomStyles = {
@@ -45,6 +52,13 @@ const DEFAULT_STYLES: CustomStyles = {
   labelWeight: 'bold',
   buttonStyle: 'rounded',
   inputVariant: 'outline',
+  logoHeight: 48,
+  logoAlignment: 'left',
+  logoBorderRadius: 8,
+  coverHeight: 240,
+  pageBgColor: '#f3f4f6',
+  pageBgImage: '',
+  headerAlignment: 'left',
 }
 
 export default function PublicForm({ form, customStyles: rawStyles }: { form: any; customStyles?: Partial<CustomStyles> }) {
