@@ -13,6 +13,7 @@ export interface FormField {
   required: boolean
   options: string[] | null
   placeholder: string | null
+  fileMode?: 'upload' | 'link'
 }
 
 export interface CustomStyles {
@@ -501,13 +502,37 @@ function FormCanvas({
                   {['file', 'multifile'].includes(field.type) && (
                     <div className="w-full">
                       <div className="flex bg-gray-100 rounded-lg p-1 w-fit mb-3">
-                        <div className="px-4 py-1.5 text-xs font-bold rounded-md bg-white shadow-sm" style={{ color: customStyles.accentColor }}>Upload File</div>
-                        <div className="px-4 py-1.5 text-xs font-bold rounded-md text-gray-500">Paste Link</div>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); onUpdateField(index, { fileMode: 'upload' }); }}
+                          className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${(!field.fileMode || field.fileMode === 'upload') ? 'bg-white shadow-sm' : 'text-gray-500 hover:bg-gray-200'}`}
+                          style={{ color: (!field.fileMode || field.fileMode === 'upload') ? customStyles.accentColor : undefined }}
+                        >
+                          Upload File
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); onUpdateField(index, { fileMode: 'link' }); }}
+                          className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${field.fileMode === 'link' ? 'bg-white shadow-sm' : 'text-gray-500 hover:bg-gray-200'}`}
+                          style={{ color: field.fileMode === 'link' ? customStyles.accentColor : undefined }}
+                        >
+                          Paste Link
+                        </button>
                       </div>
-                      <div className="flex flex-col items-center justify-center w-full py-8 border-2 border-dashed rounded-2xl bg-gray-50/50" style={{ borderColor: customStyles.inputBorderColor }}>
-                        <svg className="w-8 h-8 mb-2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
-                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">File Upload Preview</p>
-                      </div>
+                      
+                      {(!field.fileMode || field.fileMode === 'upload') ? (
+                        <div className="flex flex-col items-center justify-center w-full py-8 border-2 border-dashed rounded-2xl bg-gray-50/50" style={{ borderColor: customStyles.inputBorderColor }}>
+                          <svg className="w-8 h-8 mb-2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+                          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">File Upload Preview</p>
+                        </div>
+                      ) : (
+                        <div className="relative pointer-events-none">
+                          <div className="absolute inset-y-0 left-0 flex items-center pl-4" style={{ color: customStyles.bodyText, opacity: 0.4 }}>
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                          </div>
+                          <input type="url" placeholder="https://drive.google.com/..." readOnly className={inputCls} style={{ ...getInternalInputStyle(), paddingLeft: '2.75rem' }} />
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -613,6 +638,7 @@ export default function EditFormPage({ params }: { params: Promise<{ id: string 
       required: false,
       options: ['select', 'multiselect', 'radio', 'checkbox'].includes(type) ? ['Option 1', 'Option 2', 'Option 3'] : null,
       placeholder: null,
+      ...(type === 'file' || type === 'multifile' ? { fileMode: 'upload' } : {})
     }
     setFields(prev => [...prev, newField])
     setSelectedFieldIndex(fields.length)
