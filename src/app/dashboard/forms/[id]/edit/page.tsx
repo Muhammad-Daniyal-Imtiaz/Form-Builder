@@ -499,9 +499,15 @@ function FormCanvas({
                   )}
 
                   {['file', 'multifile'].includes(field.type) && (
-                    <div className="flex flex-col items-center justify-center w-full py-8 border-2 border-dashed rounded-2xl bg-gray-50/50" style={{ borderColor: customStyles.inputBorderColor }}>
-                      <svg className="w-8 h-8 mb-2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
-                      <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">File Upload Preview</p>
+                    <div className="w-full">
+                      <div className="flex bg-gray-100 rounded-lg p-1 w-fit mb-3">
+                        <div className="px-4 py-1.5 text-xs font-bold rounded-md bg-white shadow-sm" style={{ color: customStyles.accentColor }}>Upload File</div>
+                        <div className="px-4 py-1.5 text-xs font-bold rounded-md text-gray-500">Paste Link</div>
+                      </div>
+                      <div className="flex flex-col items-center justify-center w-full py-8 border-2 border-dashed rounded-2xl bg-gray-50/50" style={{ borderColor: customStyles.inputBorderColor }}>
+                        <svg className="w-8 h-8 mb-2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">File Upload Preview</p>
+                      </div>
                     </div>
                   )}
                 </div>

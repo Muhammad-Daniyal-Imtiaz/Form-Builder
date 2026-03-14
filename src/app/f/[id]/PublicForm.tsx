@@ -65,6 +65,7 @@ export default function PublicForm({ form, customStyles: rawStyles }: { form: an
   const router = useRouter()
   const [data, setData] = useState<Record<string, any>>({})
   const [files, setFiles] = useState<Record<string, any>>({})
+  const [fileModes, setFileModes] = useState<Record<string, 'upload' | 'link'>>({})
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -308,37 +309,86 @@ export default function PublicForm({ form, customStyles: rawStyles }: { form: an
                 </div>
               )}
 
-              {['file', 'multifile'].includes(field.type) && (
-                <label className="flex flex-col items-center justify-center w-full h-44 rounded-xl border-2 border-dashed cursor-pointer transition-colors"
-                  style={{ borderColor: files[fieldKey] ? cs.accentColor : cs.inputBorderColor, background: files[fieldKey] ? cs.accentColor + '0d' : cs.inputBg }}>
-                  <div className="flex flex-col items-center justify-center text-center px-6">
-                    {files[fieldKey] ? (
-                      <>
-                        <svg className="w-10 h-10 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: cs.accentColor }}>
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <p className="text-sm font-semibold" style={{ color: cs.accentColor }}>
-                          {Array.isArray(files[fieldKey]) ? `${files[fieldKey].length} files attached` : files[fieldKey].fileName}
-                        </p>
-                        {field.type === 'multifile' && <p className="text-xs mt-1 opacity-60" style={{ color: cs.bodyText }}>Click to add more</p>}
-                      </>
+              {['file', 'multifile'].includes(field.type) && (() => {
+                const mode = fileModes[fieldKey] || 'upload'
+                return (
+                  <div>
+                    {/* Toggle */}
+                    <div className="flex bg-gray-100/80 rounded-lg p-1 w-fit mb-3 border border-gray-200" style={{ background: cs.inputBg }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFileModes({ ...fileModes, [fieldKey]: 'upload' })
+                          handleInputChange(fieldKey, files[fieldKey]) // restore file submit data
+                        }}
+                        className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${mode === 'upload' ? 'bg-white shadow-sm' : 'opacity-60 hover:opacity-100'}`}
+                        style={{ color: mode === 'upload' ? cs.accentColor : cs.bodyText }}
+                      >
+                        Upload File
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFileModes({ ...fileModes, [fieldKey]: 'link' })
+                          handleInputChange(fieldKey, null) // clear upload data in form submit
+                        }}
+                        className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${mode === 'link' ? 'bg-white shadow-sm' : 'opacity-60 hover:opacity-100'}`}
+                        style={{ color: mode === 'link' ? cs.accentColor : cs.bodyText }}
+                      >
+                        Paste Link
+                      </button>
+                    </div>
+
+                    {mode === 'upload' ? (
+                      <label className="flex flex-col items-center justify-center w-full h-44 rounded-xl border-2 border-dashed cursor-pointer transition-colors"
+                        style={{ borderColor: files[fieldKey] ? cs.accentColor : cs.inputBorderColor, background: files[fieldKey] ? cs.accentColor + '0d' : cs.inputBg }}>
+                        <div className="flex flex-col items-center justify-center text-center px-6">
+                          {files[fieldKey] ? (
+                            <>
+                              <svg className="w-10 h-10 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: cs.accentColor }}>
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              <p className="text-sm font-semibold" style={{ color: cs.accentColor }}>
+                                {Array.isArray(files[fieldKey]) ? `${files[fieldKey].length} files attached` : files[fieldKey].fileName}
+                              </p>
+                              {field.type === 'multifile' && <p className="text-xs mt-1 opacity-60" style={{ color: cs.bodyText }}>Click to add more</p>}
+                            </>
+                          ) : (
+                            <>
+                              <svg className="w-10 h-10 mb-2 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: cs.bodyText }}>
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                              </svg>
+                              <p className="text-sm" style={{ color: cs.bodyText }}>
+                                <span className="font-bold" style={{ color: cs.accentColor }}>Click to upload</span> {field.type === 'multifile' ? 'multiple files' : 'a file'}
+                              </p>
+                              <p className="text-xs mt-1 opacity-50" style={{ color: cs.bodyText }}>PNG, JPG, PDF up to 50MB</p>
+                            </>
+                          )}
+                        </div>
+                        <input type="file" className="hidden" multiple={field.type === 'multifile'} required={field.required && !files[fieldKey]}
+                          onChange={e => { if (e.target.files?.length) handleFileChange(fieldKey, e.target.files, field.type === 'multifile') }}
+                        />
+                      </label>
                     ) : (
-                      <>
-                        <svg className="w-10 h-10 mb-2 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: cs.bodyText }}>
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                        </svg>
-                        <p className="text-sm" style={{ color: cs.bodyText }}>
-                          <span className="font-bold" style={{ color: cs.accentColor }}>Click to upload</span> {field.type === 'multifile' ? 'multiple files' : 'a file'}
-                        </p>
-                        <p className="text-xs mt-1 opacity-50" style={{ color: cs.bodyText }}>PNG, JPG, PDF up to 50MB</p>
-                      </>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none" style={{ color: cs.bodyText, opacity: 0.4 }}>
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                        </div>
+                        <input 
+                          type="url" 
+                          required={field.required && typeof data[fieldKey] !== 'string'} 
+                          placeholder="https://drive.google.com/..."
+                          value={typeof data[fieldKey] === 'string' ? data[fieldKey] : ''}
+                          onChange={e => handleInputChange(fieldKey, e.target.value)}
+                          style={{ ...getInternalInputStyle(), paddingLeft: '2.75rem' }}
+                          onFocus={e => { e.target.style.borderColor = cs.accentColor }}
+                          onBlur={e => { e.target.style.borderColor = cs.inputBorderColor }}
+                        />
+                      </div>
                     )}
                   </div>
-                  <input type="file" className="hidden" multiple={field.type === 'multifile'} required={field.required && !files[fieldKey]}
-                    onChange={e => { if (e.target.files?.length) handleFileChange(fieldKey, e.target.files, field.type === 'multifile') }}
-                  />
-                </label>
-              )}
+                )
+              })()}
             </div>
           )
         })}
