@@ -51,20 +51,20 @@ export async function POST(request: Request) {
     }
 
     if (!existingUser) {
-      console.log('User profile missing for', user.id, '- creating now.')
-      const { error: insertError } = await adminClient.from('users').insert({
+      console.log('User profile missing for', user.id, '- synchronizing now.')
+      const { error: syncError } = await adminClient.from('users').upsert({
         id: user.id,
         email: user.email!,
         name: user.user_metadata?.name || user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
         role: 'user',
         is_active: true,
         is_verified: !!user.email_confirmed_at,
-        created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
-      })
-      if (insertError) {
-        console.error('Auto-heal user insert error:', insertError)
-        throw new Error(`Failed to synchronize user profile: ${insertError.message}`)
+      }, { onConflict: 'email' })
+
+      if (syncError) {
+        console.error('Auto-heal user sync error:', syncError)
+        throw new Error(`Failed to synchronize user profile: ${syncError.message}`)
       }
     }
 
