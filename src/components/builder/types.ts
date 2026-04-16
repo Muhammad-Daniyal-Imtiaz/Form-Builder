@@ -37,7 +37,10 @@ export interface CustomStyles {
   pageBgColor: string;
   pageBgImage: string;
   pageBgBlur: number;
+  pageBgOverlayOpacity: number;
+  formScale: number;
   headerAlignment: 'left' | 'center' | 'right';
+  coverImageFit: 'cover' | 'contain' | 'fill';
 }
 
 export const DEFAULT_STYLES: CustomStyles = {
@@ -67,5 +70,8 @@ export const DEFAULT_STYLES: CustomStyles = {
   pageBgColor: '#f3f4f6',
   pageBgImage: '',
   pageBgBlur: 0,
+  pageBgOverlayOpacity: 10,
+  formScale: 1,
   headerAlignment: 'left',
+  coverImageFit: 'cover'
 };

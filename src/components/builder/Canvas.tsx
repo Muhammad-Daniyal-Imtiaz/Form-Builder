@@ -177,7 +177,9 @@ export function Canvas() {
     backgroundColor: customStyles.bodyBg,
     borderRadius: customStyles.borderRadius,
     boxShadow: customStyles.boxShadow,
-    minHeight: '400px'
+    minHeight: '400px',
+    transform: `scale(${customStyles.formScale || 1})`,
+    transformOrigin: 'top center',
   }
 
   const bgStyle: React.CSSProperties = {
@@ -192,7 +194,7 @@ export function Canvas() {
   const bgOverlayStyle: React.CSSProperties = customStyles.pageBgImage ? {
     backdropFilter: `blur(${customStyles.pageBgBlur}px)`,
     WebkitBackdropFilter: `blur(${customStyles.pageBgBlur}px)`,
-    backgroundColor: 'rgba(0,0,0,0.1)',
+    backgroundColor: `rgba(0,0,0,${(customStyles.pageBgOverlayOpacity || 0) / 100})`,
   } : {}
 
   return (
@@ -206,20 +208,32 @@ export function Canvas() {
       >
         {/* Cover Image */}
         {form?.cover_image_url && (
-          <div className="w-full h-48 bg-gray-200 border-b border-gray-100">
-            <img src={form.cover_image_url} alt="Cover" className="w-full h-full object-cover" />
+          <div className="w-full bg-gray-200 border-b border-gray-100" style={{ height: customStyles.coverHeight || 240 }}>
+            <img 
+              src={form.cover_image_url} 
+              alt="Cover" 
+              className="w-full h-full" 
+              style={{ objectFit: customStyles.coverImageFit || 'cover' }}
+            />
           </div>
         )}
 
         {/* Form Header */}
-        <div style={{ backgroundColor: customStyles.headerBg, color: customStyles.headerText }} className="px-8 py-10 transition-colors">
+        <div style={{ backgroundColor: customStyles.headerBg, color: customStyles.headerText, textAlign: customStyles.headerAlignment }} className="px-8 py-10 transition-colors">
           {form?.logo_url && (
-            <img 
-              src={form.logo_url} 
-              alt="Logo" 
-              className="h-16 mb-6 object-contain" 
-              style={{ borderRadius: customStyles.logoBorderRadius }}
-            />
+            <div className="mb-6 flex" style={{ 
+              justifyContent: customStyles.logoAlignment === 'center' ? 'center' : customStyles.logoAlignment === 'right' ? 'flex-end' : 'flex-start' 
+            }}>
+              <img 
+                src={form.logo_url} 
+                alt="Logo" 
+                className="object-contain transition-all" 
+                style={{ 
+                  height: customStyles.logoHeight || 48, 
+                  borderRadius: customStyles.logoBorderRadius 
+                }}
+              />
+            </div>
           )}
 
           <input 
