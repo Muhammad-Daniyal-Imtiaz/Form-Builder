@@ -180,16 +180,48 @@ export function Canvas() {
     minHeight: '400px'
   }
 
+  const bgStyle: React.CSSProperties = {
+    ...(customStyles.pageBgImage ? {
+      backgroundImage: `url(${customStyles.pageBgImage})`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      backgroundAttachment: 'fixed',
+    } : {}),
+  }
+
+  const bgOverlayStyle: React.CSSProperties = customStyles.pageBgImage ? {
+    backdropFilter: `blur(${customStyles.pageBgBlur}px)`,
+    WebkitBackdropFilter: `blur(${customStyles.pageBgBlur}px)`,
+    backgroundColor: 'rgba(0,0,0,0.1)',
+  } : {}
+
   return (
-    <div className="flex-1 py-12 px-4 sm:px-8 overflow-y-auto custom-scrollbar" onClick={() => setActiveFieldId(null)}>
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
+    <div className="flex-1 overflow-y-auto custom-scrollbar relative" onClick={() => setActiveFieldId(null)} style={bgStyle}>
+      <div className="min-h-full py-12 px-4 sm:px-8" style={bgOverlayStyle}>
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
         style={containerStyle} 
-        className="relative overflow-hidden transition-all duration-300"
+        className="relative overflow-hidden transition-all duration-300 shadow-2xl"
       >
+        {/* Cover Image */}
+        {form?.cover_image_url && (
+          <div className="w-full h-48 bg-gray-200 border-b border-gray-100">
+            <img src={form.cover_image_url} alt="Cover" className="w-full h-full object-cover" />
+          </div>
+        )}
+
         {/* Form Header */}
         <div style={{ backgroundColor: customStyles.headerBg, color: customStyles.headerText }} className="px-8 py-10 transition-colors">
+          {form?.logo_url && (
+            <img 
+              src={form.logo_url} 
+              alt="Logo" 
+              className="h-16 mb-6 object-contain" 
+              style={{ borderRadius: customStyles.logoBorderRadius }}
+            />
+          )}
+
           <input 
             type="text" 
             value={form?.title || ''} 
@@ -246,6 +278,7 @@ export function Canvas() {
           )}
         </div>
       </motion.div>
+      </div>
     </div>
   )
 }

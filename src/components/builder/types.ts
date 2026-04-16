@@ -36,6 +36,7 @@ export interface CustomStyles {
   coverHeight: number;
   pageBgColor: string;
   pageBgImage: string;
+  pageBgBlur: number;
   headerAlignment: 'left' | 'center' | 'right';
 }
 
@@ -65,5 +66,6 @@ export const DEFAULT_STYLES: CustomStyles = {
   coverHeight: 240,
   pageBgColor: '#f3f4f6',
   pageBgImage: '',
+  pageBgBlur: 0,
   headerAlignment: 'left',
 };

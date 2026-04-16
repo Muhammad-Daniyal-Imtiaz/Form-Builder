@@ -19,7 +19,7 @@ const FIELD_TOOLS: { type: FieldType; label: string; icon: React.ReactNode; desc
 ]
 
 export function Sidebar() {
-  const { sidebarTab, setSidebarTab, addField } = useBuilder()
+  const { sidebarTab, setSidebarTab, addField, form, customStyles, updateFormDetails, updateStyles } = useBuilder()
 
   return (
     <aside className="w-72 bg-white/80 backdrop-blur-xl border-r border-gray-200/50 h-[calc(100vh-56px)] sticky top-14 flex flex-col shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-10 shrink-0">
@@ -97,9 +97,66 @@ export function Sidebar() {
 
         {sidebarTab === 'design' && (
           <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
-            <div className="p-4 bg-pink-50 rounded-xl text-pink-800 text-sm font-medium border border-pink-100 text-center">
-              Theme customizer coming soon. For now this uses the default preset to maintain visual integrity during drag-and-drop.
+            
+            <div>
+              <h3 className="text-[11px] font-extrabold text-gray-400 uppercase tracking-widest mb-3 px-1">Brand Assets</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1 px-1">Logo URL</label>
+                  <input
+                    type="url"
+                    value={form?.logo_url || ''}
+                    onChange={(e) => updateFormDetails({ logo_url: e.target.value })}
+                    placeholder="https://example.com/logo.png"
+                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all placeholder:text-gray-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1 px-1">Cover Image URL</label>
+                  <input
+                    type="url"
+                    value={form?.cover_image_url || ''}
+                    onChange={(e) => updateFormDetails({ cover_image_url: e.target.value })}
+                    placeholder="https://example.com/banner.jpg"
+                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all placeholder:text-gray-400"
+                  />
+                </div>
+              </div>
             </div>
+
+            <div>
+              <h3 className="text-[11px] font-extrabold text-gray-400 uppercase tracking-widest mb-3 px-1">Page Background</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1 px-1">Background Image URL</label>
+                  <input
+                    type="url"
+                    value={customStyles.pageBgImage || ''}
+                    onChange={(e) => updateStyles({ pageBgImage: e.target.value })}
+                    placeholder="https://example.com/bg.jpg"
+                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-pink-500/20 focus:border-pink-500 outline-none transition-all placeholder:text-gray-400"
+                  />
+                </div>
+                {customStyles.pageBgImage && (
+                  <div>
+                    <label className="flex items-center justify-between text-xs font-bold text-gray-700 mb-2 px-1">
+                      <span>Background Blur</span>
+                      <span className="text-pink-600">{customStyles.pageBgBlur}px</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="40"
+                      step="1"
+                      value={customStyles.pageBgBlur || 0}
+                      onChange={(e) => updateStyles({ pageBgBlur: parseInt(e.target.value) })}
+                      className="w-full accent-pink-500"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+
           </motion.div>
         )}
       </div>
