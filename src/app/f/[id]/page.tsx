@@ -26,7 +26,11 @@ const DEFAULT_STYLES = {
   coverHeight: 240,
   pageBgColor: '#f3f4f6',
   pageBgImage: '',
+  pageBgBlur: 0,
+  pageBgOverlayOpacity: 10,
+  formScale: 1,
   headerAlignment: 'left',
+  coverImageFit: 'cover'
 }
 
 export default async function PublicFormPage({
@@ -80,7 +84,7 @@ export default async function PublicFormPage({
 
   return (
     <div 
-      className="min-h-screen py-12 px-4 sm:px-6 transition-all duration-300" 
+      className="min-h-screen transition-all duration-300 relative" 
       style={{ 
         backgroundColor: customStyles.pageBgColor,
         backgroundImage: customStyles.pageBgImage ? `url(${customStyles.pageBgImage})` : 'none',
@@ -89,31 +93,40 @@ export default async function PublicFormPage({
         backgroundAttachment: 'fixed'
       }}
     >
-
-      <div
-        className="mx-auto overflow-hidden transition-all duration-300"
-        style={{
-          maxWidth: `${customStyles.containerWidth}px`,
-          boxShadow: customStyles.boxShadow,
-          borderRadius: `${customStyles.borderRadius}px`,
-          fontFamily: `"${customStyles.fontFamily}", sans-serif`,
-          fontSize: `${customStyles.fontSizeBase}px`,
-          background: customStyles.bodyBg
-        }}
+      <div 
+        className="min-h-screen py-12 px-4 sm:px-6"
+        style={customStyles.pageBgImage ? {
+          backdropFilter: `blur(${customStyles.pageBgBlur}px)`,
+          WebkitBackdropFilter: `blur(${customStyles.pageBgBlur}px)`,
+          backgroundColor: `rgba(0,0,0,${(customStyles.pageBgOverlayOpacity || 0) / 100})`,
+        } : {}}
       >
-        {/* COVER IMAGE */}
-        {form.cover_image_url && (
-          <div 
-            className="w-full overflow-hidden bg-gray-200"
-            style={{ height: `${customStyles.coverHeight}px` }}
-          >
-            <img
-              src={form.cover_image_url}
-              alt="Cover"
-              className="w-full h-full object-cover"
-            />
-          </div>
-        )}
+        <div
+          className="mx-auto overflow-hidden transition-all duration-300 shadow-2xl"
+          style={{
+            maxWidth: `${customStyles.containerWidth}px`,
+            borderRadius: `${customStyles.borderRadius}px`,
+            fontFamily: `"${customStyles.fontFamily}", sans-serif`,
+            fontSize: `${customStyles.fontSizeBase}px`,
+            background: customStyles.bodyBg,
+            transform: `scale(${customStyles.formScale || 1})`,
+            transformOrigin: 'top center'
+          }}
+        >
+          {/* COVER IMAGE */}
+          {form.cover_image_url && (
+            <div 
+              className="w-full overflow-hidden bg-gray-200 border-b border-gray-100"
+              style={{ height: `${customStyles.coverHeight}px` }}
+            >
+              <img
+                src={form.cover_image_url}
+                alt="Cover"
+                className="w-full h-full"
+                style={{ objectFit: customStyles.coverImageFit as any || 'cover' }}
+              />
+            </div>
+          )}
 
         {/* FORM HEADER */}
         <div
@@ -163,6 +176,7 @@ export default async function PublicFormPage({
         {/* FORM BODY */}
         <PublicForm form={form} customStyles={customStyles} />
       </div>
+     </div>
     </div>
   )
 }
