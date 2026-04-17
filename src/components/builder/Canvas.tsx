@@ -146,7 +146,7 @@ function SortableFieldItem({ field }: { field: FormField }) {
 }
 
 export function Canvas() {
-  const { form, fields, setFields, customStyles, setActiveFieldId } = useBuilder()
+  const { form, fields, setFields, customStyles, setActiveFieldId, formSettings } = useBuilder()
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -180,6 +180,7 @@ export function Canvas() {
     minHeight: '400px',
     transform: `scale(${customStyles.formScale || 1})`,
     transformOrigin: 'top center',
+    fontFamily: `"${customStyles.fontFamily}", sans-serif`,
   }
 
   const bgStyle: React.CSSProperties = {
@@ -197,8 +198,13 @@ export function Canvas() {
     backgroundColor: `rgba(0,0,0,${(customStyles.pageBgOverlayOpacity || 0) / 100})`,
   } : {}
 
+  const fontUrl = customStyles.fontFamily && !['Inter'].includes(customStyles.fontFamily)
+    ? `https://fonts.googleapis.com/css2?family=${customStyles.fontFamily.replace(' ', '+')}:wght@400;700;800&display=swap`
+    : null;
+
   return (
     <div className="flex-1 overflow-y-auto custom-scrollbar relative" onClick={() => setActiveFieldId(null)} style={bgStyle}>
+      {fontUrl && <style dangerouslySetInnerHTML={{ __html: `@import url('${fontUrl}');` }} />}
       <div className="min-h-full py-12 px-4 sm:px-8" style={bgOverlayStyle}>
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
@@ -286,7 +292,7 @@ export function Canvas() {
                 className="w-full py-4 rounded-xl text-white font-bold text-lg opacity-80 cursor-not-allowed transition-colors"
                 style={{ backgroundColor: customStyles.accentColor }}
               >
-                Submit Form
+                {formSettings.submitButtonText || 'Submit Form'}
               </button>
             </div>
           )}

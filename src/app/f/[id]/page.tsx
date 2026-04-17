@@ -33,6 +33,13 @@ const DEFAULT_STYLES = {
   coverImageFit: 'cover'
 }
 
+const DEFAULT_SETTINGS = {
+  submitButtonText: 'Submit Form',
+  thankYouHeadline: 'Thank You!',
+  thankYouMessage: 'Your response has been successfully submitted.',
+  redirectUrl: '',
+}
+
 export default async function PublicFormPage({
   params,
 }: {
@@ -63,14 +70,21 @@ export default async function PublicFormPage({
     )
   }
 
-  // Parse description + styles
+  // Parse description + styles + settings
   let displayDescription = form.description || ''
   let customStyles = { ...DEFAULT_STYLES }
+  let formSettings = { ...DEFAULT_SETTINGS }
+
+  if (displayDescription.includes('|||SETTINGS:')) {
+    const parts = displayDescription.split('|||SETTINGS:')
+    try { formSettings = { ...DEFAULT_SETTINGS, ...JSON.parse(parts[1]) } } catch { }
+    displayDescription = parts[0]
+  }
 
   if (displayDescription.includes('|||STYLES:')) {
     const parts = displayDescription.split('|||STYLES:')
-    displayDescription = parts[0]
     try { customStyles = { ...DEFAULT_STYLES, ...JSON.parse(parts[1]) } } catch { }
+    displayDescription = parts[0]
   }
 
   // Sort fields by order
@@ -174,7 +188,7 @@ export default async function PublicFormPage({
         </div>
 
         {/* FORM BODY */}
-        <PublicForm form={form} customStyles={customStyles} />
+        <PublicForm form={form} customStyles={customStyles} formSettings={formSettings} />
       </div>
      </div>
     </div>

@@ -2,9 +2,13 @@
 
 import React from 'react'
 import { motion } from 'framer-motion'
-import { Type, Mail, Hash, AlignLeft, List, CheckSquare, Image as ImageIcon, FileUp, Palette, Layers, Plus } from 'lucide-react'
+import { 
+  Type, Mail, Hash, AlignLeft, List, CheckSquare, 
+  FileUp, Palette, Plus, Settings, Check, 
+  MousePointer2, MessageSquare, ExternalLink, RefreshCcw
+} from 'lucide-react'
 import { useBuilder } from './BuilderContext'
-import { FieldType } from './types'
+import { FieldType, PRESET_THEMES, AVAILABLE_FONTS } from './types'
 import { cn } from '@/utils/cn'
 
 const FIELD_TOOLS: { type: FieldType; label: string; icon: React.ReactNode; desc: string }[] = [
@@ -19,32 +23,48 @@ const FIELD_TOOLS: { type: FieldType; label: string; icon: React.ReactNode; desc
 ]
 
 export function Sidebar() {
-  const { sidebarTab, setSidebarTab, addField, form, customStyles, updateFormDetails, updateStyles } = useBuilder()
+  const { 
+    sidebarTab, setSidebarTab, addField, 
+    form, customStyles, updateFormDetails, 
+    updateStyles, applyThemePreset, 
+    formSettings, updateFormSettings 
+  } = useBuilder()
 
   return (
-    <aside className="w-72 bg-white/80 backdrop-blur-xl border-r border-gray-200/50 h-[calc(100vh-56px)] sticky top-14 flex flex-col shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-10 shrink-0">
-      <div className="flex p-3 gap-1 border-b border-gray-100">
+    <aside className="w-80 bg-white/80 backdrop-blur-2xl border-r border-gray-200/50 h-[calc(100vh-56px)] sticky top-14 flex flex-col shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-10 shrink-0 overflow-hidden">
+      <div className="flex p-2 gap-1 border-b border-gray-100 bg-gray-50/50">
         <button
           onClick={() => setSidebarTab('add')}
           className={cn(
-            "flex-1 flex items-center justify-center gap-2 py-2 px-3 text-xs font-bold rounded-lg transition-all relative",
-            sidebarTab === 'add' ? "text-indigo-700" : "text-gray-500 hover:bg-gray-100"
+            "flex-1 flex flex-col items-center justify-center gap-1 py-2 px-1 text-[10px] font-bold rounded-lg transition-all relative",
+            sidebarTab === 'add' ? "text-indigo-700" : "text-gray-500 hover:bg-white hover:shadow-sm"
           )}
         >
-          {sidebarTab === 'add' && <motion.div layoutId="tab-bg" className="absolute inset-0 bg-indigo-50 rounded-lg -z-10" />}
+          {sidebarTab === 'add' && <motion.div layoutId="tab-bg" className="absolute inset-0 bg-white shadow-sm border border-gray-100 rounded-lg -z-10" />}
           <Plus className="w-4 h-4" />
-          Add Fields
+          Fields
         </button>
         <button
           onClick={() => setSidebarTab('design')}
           className={cn(
-            "flex-1 flex items-center justify-center gap-2 py-2 px-3 text-xs font-bold rounded-lg transition-all relative",
-            sidebarTab === 'design' ? "text-pink-700" : "text-gray-500 hover:bg-gray-100"
+            "flex-1 flex flex-col items-center justify-center gap-1 py-2 px-1 text-[10px] font-bold rounded-lg transition-all relative",
+            sidebarTab === 'design' ? "text-pink-700" : "text-gray-500 hover:bg-white hover:shadow-sm"
           )}
         >
-          {sidebarTab === 'design' && <motion.div layoutId="tab-bg" className="absolute inset-0 bg-pink-50 rounded-lg -z-10" />}
+          {sidebarTab === 'design' && <motion.div layoutId="tab-bg" className="absolute inset-0 bg-white shadow-sm border border-gray-100 rounded-lg -z-10" />}
           <Palette className="w-4 h-4" />
-          Theme
+          Design
+        </button>
+        <button
+          onClick={() => setSidebarTab('settings')}
+          className={cn(
+            "flex-1 flex flex-col items-center justify-center gap-1 py-2 px-1 text-[10px] font-bold rounded-lg transition-all relative",
+            sidebarTab === 'settings' ? "text-amber-700" : "text-gray-500 hover:bg-white hover:shadow-sm"
+          )}
+        >
+          {sidebarTab === 'settings' && <motion.div layoutId="tab-bg" className="absolute inset-0 bg-white shadow-sm border border-gray-100 rounded-lg -z-10" />}
+          <Settings className="w-4 h-4" />
+          Settings
         </button>
       </div>
 
@@ -96,8 +116,123 @@ export function Sidebar() {
         )}
 
         {sidebarTab === 'design' && (
-          <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+          <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="space-y-8 pb-10">
             
+            {/* Theme Presets */}
+            <div>
+              <div className="flex items-center justify-between mb-3 px-1">
+                <h3 className="text-[11px] font-extrabold text-gray-400 uppercase tracking-widest">Premium Presets</h3>
+                <RefreshCcw 
+                  className="w-3 h-3 text-gray-300 hover:text-indigo-500 cursor-pointer transition-colors" 
+                  onClick={() => applyThemePreset('minimal-light')}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {Object.keys(PRESET_THEMES).map((presetId) => (
+                  <button
+                    key={presetId}
+                    onClick={() => applyThemePreset(presetId)}
+                    className={cn(
+                      "group relative aspect-[4/3] rounded-xl border-2 overflow-hidden transition-all text-left",
+                      "hover:shadow-lg hover:shadow-indigo-500/10",
+                      // Highlight if it mostly matches active (simple check)
+                      customStyles.fontFamily === PRESET_THEMES[presetId].fontFamily ? "border-indigo-500 ring-4 ring-indigo-50" : "border-gray-100 hover:border-indigo-200"
+                    )}
+                  >
+                    <div className="absolute inset-0 p-3 flex flex-col justify-between" style={{ background: PRESET_THEMES[presetId].pageBgColor }}>
+                      <div className="space-y-1">
+                        <div className="w-full h-1 rounded-full opacity-20" style={{ background: PRESET_THEMES[presetId].accentColor }}></div>
+                        <div className="w-2/3 h-1 rounded-full opacity-10" style={{ background: PRESET_THEMES[presetId].accentColor }}></div>
+                      </div>
+                      <span className="text-[10px] font-bold capitalize truncate" style={{ color: PRESET_THEMES[presetId].bodyText || '#000' }}>
+                        {presetId.split('-').join(' ')}
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Typography */}
+            <div>
+              <h3 className="text-[11px] font-extrabold text-gray-400 uppercase tracking-widest mb-3 px-1">Typography</h3>
+              <div className="space-y-3 p-3 bg-gray-50 border border-gray-100 rounded-xl">
+                 <label className="block text-xs font-bold text-gray-700 mb-1">Select Font</label>
+                 <div className="grid grid-cols-1 gap-1">
+                   {AVAILABLE_FONTS.map(font => (
+                     <button
+                        key={font}
+                        onClick={() => updateStyles({ fontFamily: font })}
+                        className={cn(
+                          "w-full text-left px-3 py-2 rounded-lg text-sm border transition-all",
+                          customStyles.fontFamily === font 
+                            ? "bg-white border-indigo-200 text-indigo-700 shadow-sm shadow-indigo-500/10 font-bold" 
+                            : "bg-transparent border-transparent text-gray-600 hover:bg-white hover:border-gray-200"
+                        )}
+                        style={{ fontFamily: font }}
+                     >
+                       {font}
+                     </button>
+                   ))}
+                 </div>
+              </div>
+            </div>
+
+            {/* Colors */}
+            <div>
+              <h3 className="text-[11px] font-extrabold text-gray-400 uppercase tracking-widest mb-3 px-1">Brand Colors</h3>
+              <div className="grid grid-cols-2 gap-3 p-3 bg-gray-50 border border-gray-100 rounded-xl">
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Accent</label>
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="color" 
+                      value={customStyles.accentColor} 
+                      onChange={(e) => updateStyles({ accentColor: e.target.value })}
+                      className="w-8 h-8 rounded-lg cursor-pointer border-0 p-0 overflow-hidden"
+                    />
+                    <span className="text-[10px] font-mono uppercase text-gray-400">{customStyles.accentColor}</span>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Header BG</label>
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="color" 
+                      value={customStyles.headerBg} 
+                      onChange={(e) => updateStyles({ headerBg: e.target.value })}
+                      className="w-8 h-8 rounded-lg cursor-pointer border-0 p-0 overflow-hidden"
+                    />
+                    <span className="text-[10px] font-mono uppercase text-gray-400">{customStyles.headerBg}</span>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Header Text</label>
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="color" 
+                      value={customStyles.headerText} 
+                      onChange={(e) => updateStyles({ headerText: e.target.value })}
+                      className="w-8 h-8 rounded-lg cursor-pointer border-0 p-0 overflow-hidden"
+                    />
+                    <span className="text-[10px] font-mono uppercase text-gray-400">{customStyles.headerText}</span>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Surface</label>
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="color" 
+                      value={customStyles.bodyBg} 
+                      onChange={(e) => updateStyles({ bodyBg: e.target.value })}
+                      className="w-8 h-8 rounded-lg cursor-pointer border-0 p-0 overflow-hidden"
+                    />
+                    <span className="text-[10px] font-mono uppercase text-gray-400">{customStyles.bodyBg}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div>
               <h3 className="text-[11px] font-extrabold text-gray-400 uppercase tracking-widest mb-3 px-1">Brand Assets</h3>
               <div className="space-y-4">
@@ -322,6 +457,84 @@ export function Sidebar() {
                     Scales the entire form container up or down instantly.
                   </p>
                 </div>
+              </div>
+            </div>
+
+          </motion.div>
+        )}
+
+        {sidebarTab === 'settings' && (
+          <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="space-y-6 pb-10">
+            
+            <div>
+              <h3 className="text-[11px] font-extrabold text-gray-400 uppercase tracking-widest mb-3 px-1">Submission Button</h3>
+              <div className="p-3 bg-gray-50 border border-gray-100 rounded-xl space-y-3">
+                <div className="flex items-center gap-2 text-indigo-600 mb-1">
+                  <MousePointer2 className="w-4 h-4" />
+                  <span className="text-xs font-bold uppercase tracking-wider">Button Text</span>
+                </div>
+                <input
+                  type="text"
+                  value={formSettings.submitButtonText}
+                  onChange={(e) => updateFormSettings({ submitButtonText: e.target.value })}
+                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+                  placeholder="Submit Form"
+                />
+                <p className="text-[10px] text-gray-400 mt-1 px-1 italic">
+                  Example: "Register Now", "Send Message", "Join Waitlist"
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-[11px] font-extrabold text-gray-400 uppercase tracking-widest mb-3 px-1">Completion Experience</h3>
+              <div className="p-3 bg-gray-50 border border-gray-100 rounded-xl space-y-4">
+                <div className="flex items-center gap-2 text-emerald-600 mb-1">
+                  <MessageSquare className="w-4 h-4" />
+                  <span className="text-xs font-bold uppercase tracking-wider">Thank You Screen</span>
+                </div>
+                
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Headline</label>
+                  <input
+                    type="text"
+                    value={formSettings.thankYouHeadline}
+                    onChange={(e) => updateFormSettings({ thankYouHeadline: e.target.value })}
+                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
+                    placeholder="Thank You!"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Sub-message</label>
+                  <textarea
+                    rows={3}
+                    value={formSettings.thankYouMessage}
+                    onChange={(e) => updateFormSettings({ thankYouMessage: e.target.value })}
+                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none resize-none"
+                    placeholder="Your response has been successfully submitted."
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-[11px] font-extrabold text-gray-400 uppercase tracking-widest mb-3 px-1">Post-Submission</h3>
+              <div className="p-3 bg-gray-50 border border-gray-100 rounded-xl space-y-3">
+                <div className="flex items-center gap-2 text-blue-600 mb-1">
+                  <ExternalLink className="w-4 h-4" />
+                  <span className="text-xs font-bold uppercase tracking-wider">Redirect URL</span>
+                </div>
+                <input
+                  type="url"
+                  value={formSettings.redirectUrl}
+                  onChange={(e) => updateFormSettings({ redirectUrl: e.target.value })}
+                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
+                  placeholder="https://yourwebsite.com/welcome"
+                />
+                <p className="text-[10px] text-gray-400 mt-1 px-1">
+                  If set, users will be taken to this URL immediately after submission instead of seeing the Thank You screen.
+                </p>
               </div>
             </div>
 

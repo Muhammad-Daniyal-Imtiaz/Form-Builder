@@ -16,13 +16,15 @@ interface BuilderContextType {
   saved: boolean;
   error: string | null;
   activeFieldId: string | null; // For DND / Selection
-  sidebarTab: 'add' | 'design' | 'themes';
+  sidebarTab: 'add' | 'design' | 'settings';
   
   // Actions
-  setSidebarTab: (tab: 'add' | 'design' | 'themes') => void;
+  setSidebarTab: (tab: 'add' | 'design' | 'settings') => void;
   setActiveFieldId: (id: string | null) => void;
   updateFormDetails: (updates: Partial<any>) => void;
   updateStyles: (updates: Partial<CustomStyles>) => void;
+  updateFormSettings: (updates: Partial<FormSettings>) => void;
+  applyThemePreset: (presetId: string) => void;
   setFields: React.Dispatch<React.SetStateAction<FormField[]>>;
   
   // Field Actions
@@ -46,6 +48,7 @@ export function BuilderProvider({ children, formId }: { children: React.ReactNod
   const [form, setForm] = useState<any>(null)
   const [fields, setFields] = useState<FormField[]>([])
   const [customStyles, setCustomStyles] = useState<CustomStyles>({ ...DEFAULT_STYLES })
+  const [formSettings, setFormSettings] = useState<FormSettings>({ ...DEFAULT_SETTINGS })
   
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -53,7 +56,7 @@ export function BuilderProvider({ children, formId }: { children: React.ReactNod
   const [error, setError] = useState<string | null>(null)
   
   const [activeFieldId, setActiveFieldId] = useState<string | null>(null)
-  const [sidebarTab, setSidebarTab] = useState<'add' | 'design' | 'themes'>('add')
+  const [sidebarTab, setSidebarTab] = useState<'add' | 'design' | 'settings'>('add')
   
   // We use this to debounce auto-saves if we want, but for now manual or on-blur save
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -70,15 +73,26 @@ export function BuilderProvider({ children, formId }: { children: React.ReactNod
 
       let desc = data.description || ''
       let styles = { ...DEFAULT_STYLES }
+      let settings = { ...DEFAULT_SETTINGS }
 
+      // Parse Settings
+      if (desc.includes('|||SETTINGS:')) {
+        const parts = desc.split('|||SETTINGS:')
+        // Settings are at the end, so parts[1] is the JSON
+        try { settings = { ...DEFAULT_SETTINGS, ...JSON.parse(parts[1]) } } catch { }
+        desc = parts[0] // remove settings string from desc block
+      }
+      
+      // Parse Styles
       if (desc.includes('|||STYLES:')) {
         const parts = desc.split('|||STYLES:')
-        desc = parts[0]
         try { styles = { ...DEFAULT_STYLES, ...JSON.parse(parts[1]) } } catch { }
+        desc = parts[0]
       }
 
       setForm({ ...data, description: desc })
       setCustomStyles(styles)
+      setFormSettings(settings)
       
       // Ensure all fields have IDs
       const loadedFields = (data.form_fields || []).map((f: any) => ({
@@ -93,18 +107,26 @@ export function BuilderProvider({ children, formId }: { children: React.ReactNod
     }
   }
 
+  const applyThemePreset = useCallback((presetId: string) => {
+    const preset = PRESET_THEMES[presetId];
+    if (preset) {
+      setCustomStyles(prev => ({ ...prev, ...preset }));
+    }
+  }, []);
+
   const save = async () => {
     setSaving(true)
     setError(null)
     try {
-      const descWithStyles = (form.description || '') + '|||STYLES:' + JSON.stringify(customStyles)
+      // Serialize Styles & Settings into the description string
+      const descPayload = `${form.description || ''}|||STYLES:${JSON.stringify(customStyles)}|||SETTINGS:${JSON.stringify(formSettings)}`
 
       await fetch(`/api/forms/${formId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           title: form.title, 
-          description: descWithStyles, 
+          description: descPayload, 
           published: form.published,
           logo_url: form.logo_url,
           cover_image_url: form.cover_image_url
@@ -137,7 +159,7 @@ export function BuilderProvider({ children, formId }: { children: React.ReactNod
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current)
     }
-  }, [form, fields, customStyles])
+  }, [form, fields, customStyles, formSettings])
 
 
   const addField = useCallback((type: FieldType) => {
@@ -202,11 +224,13 @@ export function BuilderProvider({ children, formId }: { children: React.ReactNod
 
   return (
     <BuilderContext.Provider value={{
-      formId, form, fields, customStyles,
+      formId, form, fields, customStyles, formSettings,
       loading, saving, saved, error, activeFieldId, sidebarTab,
       setSidebarTab, setActiveFieldId, 
       updateFormDetails: (u) => setForm((p: any) => ({ ...p, ...u })),
       updateStyles: (u) => setCustomStyles(p => ({ ...p, ...u })),
+      updateFormSettings: (u) => setFormSettings(p => ({ ...p, ...u })),
+      applyThemePreset,
       setFields, addField, updateField, removeField, duplicateField,
       addOption, updateOption, removeOption,
       save

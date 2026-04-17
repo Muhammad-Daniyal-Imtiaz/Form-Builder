@@ -29,7 +29,11 @@ interface CustomStyles {
   coverHeight: number
   pageBgColor: string
   pageBgImage: string
+  pageBgBlur: number
+  pageBgOverlayOpacity: number
+  formScale: number
   headerAlignment: 'left' | 'center' | 'right'
+  coverImageFit: 'cover' | 'contain' | 'fill'
 }
 
 const DEFAULT_STYLES: CustomStyles = {
@@ -58,18 +62,46 @@ const DEFAULT_STYLES: CustomStyles = {
   coverHeight: 240,
   pageBgColor: '#f3f4f6',
   pageBgImage: '',
+  pageBgBlur: 0,
+  pageBgOverlayOpacity: 10,
+  formScale: 1,
   headerAlignment: 'left',
+  coverImageFit: 'cover',
 }
 
-export default function PublicForm({ form, customStyles: rawStyles }: { form: any; customStyles?: Partial<CustomStyles> }) {
+interface FormSettings {
+  submitButtonText: string;
+  thankYouHeadline: string;
+  thankYouMessage: string;
+  redirectUrl: string;
+}
+
+const DEFAULT_SETTINGS: FormSettings = {
+  submitButtonText: 'Submit Form',
+  thankYouHeadline: 'Thank You!',
+  thankYouMessage: 'Your response has been successfully submitted.',
+  redirectUrl: '',
+}
+
+export default function PublicForm({ 
+  form, 
+  customStyles: rawStyles,
+  formSettings: rawSettings
+}: { 
+  form: any; 
+  customStyles?: Partial<CustomStyles>;
+  formSettings?: Partial<FormSettings>;
+}) {
   const router = useRouter()
   const [data, setData] = useState<Record<string, any>>({})
   const [files, setFiles] = useState<Record<string, any>>({})
   const [fileModes, setFileModes] = useState<Record<string, 'upload' | 'link'>>({})
   const [loading, setLoading] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState('')
 
   const cs: CustomStyles = { ...DEFAULT_STYLES, ...rawStyles }
+  const settings: FormSettings = { ...DEFAULT_SETTINGS, ...rawSettings }
 
   const fontUrl = cs.fontFamily !== 'Inter' && cs.fontFamily !== 'Georgia'
     ? `https://fonts.googleapis.com/css2?family=${cs.fontFamily.replace(' ', '+')}:wght@400;500;600;700;800&display=swap`
@@ -134,11 +166,45 @@ export default function PublicForm({ form, customStyles: rawStyles }: { form: an
       })
       const resData = await res.json()
       if (!res.ok) throw new Error(resData.error || 'Failed to submit form')
-      router.push(`/f/${form.id}/success`)
+      
+      if (settings.redirectUrl) {
+         window.location.href = settings.redirectUrl
+      } else {
+         setSubmitted(true)
+      }
     } catch (err: any) {
       setError(err.message)
       setLoading(false)
     }
+  }
+
+  if (submitted) {
+    return (
+      <div 
+        style={{ 
+          background: cs.bodyBg, 
+          fontFamily: `"${cs.fontFamily}", sans-serif`, 
+          padding: `${cs.containerPadding * 1.5}px 40px`, 
+          textAlign: 'center' 
+        }} 
+        className="animate-in fade-in zoom-in duration-500"
+      >
+        <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
+          <svg className="w-10 h-10 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+        <h2 className="text-3xl font-extrabold mb-4" style={{ color: cs.bodyText }}>{settings.thankYouHeadline}</h2>
+        <p className="text-lg opacity-70 leading-relaxed" style={{ color: cs.bodyText }}>{settings.thankYouMessage}</p>
+        <button 
+          onClick={() => setSubmitted(false)}
+          className="mt-8 text-sm font-semibold opacity-50 hover:opacity-100 transition-opacity"
+          style={{ color: cs.bodyText }}
+        >
+          Submit another response
+        </button>
+      </div>
+    )
   }
 
   const baseInputStyle: React.CSSProperties = {
@@ -409,7 +475,7 @@ export default function PublicForm({ form, customStyles: rawStyles }: { form: an
                 </svg>
                 Submitting...
               </span>
-            ) : 'Submit Form'}
+            ) : (settings.submitButtonText || 'Submit Form')}
           </button>
         </div>
       </form>
