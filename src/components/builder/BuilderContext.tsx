@@ -1,7 +1,7 @@
 'use client'
 
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react'
-import { FormField, CustomStyles, DEFAULT_STYLES, FieldType } from './types'
+import { FormField, CustomStyles, DEFAULT_STYLES, FieldType, FormSettings, DEFAULT_SETTINGS, PRESET_THEMES } from './types'
 
 interface BuilderContextType {
   // Data
