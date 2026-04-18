@@ -9,6 +9,7 @@ interface BuilderContextType {
   form: any;
   fields: FormField[];
   customStyles: CustomStyles;
+  formSettings: FormSettings;
   
   // UI State
   loading: boolean;

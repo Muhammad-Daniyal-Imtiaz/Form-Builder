@@ -4,41 +4,7 @@ import PublicForm from './PublicForm'
 
 export const revalidate = 0
 
-const DEFAULT_STYLES = {
-  headerBg: '#4f46e5',
-  headerText: '#ffffff',
-  bodyBg: '#ffffff',
-  bodyText: '#111827',
-  accentColor: '#4f46e5',
-  buttonText: '#ffffff',
-  fontFamily: 'Inter',
-  inputBorderColor: '#e5e7eb',
-  inputBg: '#f9fafb',
-  labelColor: '#111827',
-  containerWidth: 640,
-  containerPadding: 40,
-  borderRadius: 16,
-  boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-  fontSizeBase: 16,
-  logoHeight: 48,
-  logoAlignment: 'left',
-  logoBorderRadius: 8,
-  coverHeight: 240,
-  pageBgColor: '#f3f4f6',
-  pageBgImage: '',
-  pageBgBlur: 0,
-  pageBgOverlayOpacity: 10,
-  formScale: 1,
-  headerAlignment: 'left',
-  coverImageFit: 'cover'
-}
-
-const DEFAULT_SETTINGS = {
-  submitButtonText: 'Submit Form',
-  thankYouHeadline: 'Thank You!',
-  thankYouMessage: 'Your response has been successfully submitted.',
-  redirectUrl: '',
-}
+import { CustomStyles, FormSettings, DEFAULT_STYLES, DEFAULT_SETTINGS } from '@/components/builder/types'
 
 export default async function PublicFormPage({
   params,

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { FieldType } from './page'
+import type { FieldType } from '@/components/builder/types'
 
 interface FormField {
     id?: string
