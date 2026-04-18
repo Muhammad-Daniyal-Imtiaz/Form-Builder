@@ -17,10 +17,10 @@ interface BuilderContextType {
   saved: boolean;
   error: string | null;
   activeFieldId: string | null; // For DND / Selection
-  sidebarTab: 'add' | 'design' | 'settings';
+  sidebarTab: 'add' | 'design' | 'settings' | 'share';
   
   // Actions
-  setSidebarTab: (tab: 'add' | 'design' | 'settings') => void;
+  setSidebarTab: (tab: 'add' | 'design' | 'settings' | 'share') => void;
   setActiveFieldId: (id: string | null) => void;
   updateFormDetails: (updates: Partial<any>) => void;
   updateStyles: (updates: Partial<CustomStyles>) => void;
@@ -57,7 +57,7 @@ export function BuilderProvider({ children, formId }: { children: React.ReactNod
   const [error, setError] = useState<string | null>(null)
   
   const [activeFieldId, setActiveFieldId] = useState<string | null>(null)
-  const [sidebarTab, setSidebarTab] = useState<'add' | 'design' | 'settings'>('add')
+  const [sidebarTab, setSidebarTab] = useState<'add' | 'design' | 'settings' | 'share'>('add')
   
   // We use this to debounce auto-saves if we want, but for now manual or on-blur save
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)

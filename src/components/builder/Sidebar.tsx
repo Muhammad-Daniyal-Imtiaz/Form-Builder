@@ -5,7 +5,8 @@ import { motion } from 'framer-motion'
 import { 
   Type, Mail, Hash, AlignLeft, List, CheckSquare, 
   FileUp, Palette, Plus, Settings, Check, 
-  MousePointer2, MessageSquare, ExternalLink, RefreshCcw
+  MousePointer2, MessageSquare, ExternalLink, RefreshCcw,
+  Share2, Globe, Code, Copy
 } from 'lucide-react'
 import { useBuilder } from './BuilderContext'
 import { FieldType, PRESET_THEMES, AVAILABLE_FONTS } from './types'
@@ -65,6 +66,17 @@ export function Sidebar() {
           {sidebarTab === 'settings' && <motion.div layoutId="tab-bg" className="absolute inset-0 bg-white shadow-sm border border-gray-100 rounded-lg -z-10" />}
           <Settings className="w-4 h-4" />
           Settings
+        </button>
+        <button
+          onClick={() => setSidebarTab('share')}
+          className={cn(
+            "flex-1 flex flex-col items-center justify-center gap-1 py-2 px-1 text-[10px] font-bold rounded-lg transition-all relative",
+            sidebarTab === 'share' ? "text-emerald-700" : "text-gray-500 hover:bg-white hover:shadow-sm"
+          )}
+        >
+          {sidebarTab === 'share' && <motion.div layoutId="tab-bg" className="absolute inset-0 bg-white shadow-sm border border-gray-100 rounded-lg -z-10" />}
+          <Share2 className="w-4 h-4" />
+          Share
         </button>
       </div>
 
@@ -538,6 +550,97 @@ export function Sidebar() {
               </div>
             </div>
 
+          </motion.div>
+        )}
+        
+        {sidebarTab === 'share' && (
+          <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="space-y-6 pb-10">
+            <div>
+              <h3 className="text-[11px] font-extrabold text-gray-400 uppercase tracking-widest mb-3 px-1">Publish & Share</h3>
+              <div className="p-4 bg-gray-50 border border-gray-100 rounded-2xl space-y-4">
+                <div className="flex items-center gap-2 text-emerald-600 mb-2">
+                  <Globe className="w-4 h-4" />
+                  <span className="text-xs font-bold uppercase tracking-wider">Public Link</span>
+                </div>
+                
+                <div className="relative group">
+                  <input
+                    type="text"
+                    readOnly
+                    value={`${typeof window !== 'undefined' ? window.location.origin : ''}/f/${form?.id}`}
+                    className="w-full pr-10 pl-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-mono text-gray-500 outline-none"
+                  />
+                  <button 
+                    onClick={() => {
+                      navigator.clipboard.writeText(`${window.location.origin}/f/${form?.id}`)
+                      alert('Link copied to clipboard!')
+                    }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-gray-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-lg transition-all"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                <p className="text-[10px] text-gray-400 leading-relaxed italic">
+                  Anyone with this link can view and fill out your beautiful form.
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-[11px] font-extrabold text-gray-400 uppercase tracking-widest mb-3 px-1">Embed on your site</h3>
+              <div className="p-4 bg-gray-50 border border-gray-100 rounded-2xl space-y-4">
+                <div className="flex items-center gap-2 text-indigo-600 mb-2">
+                  <Code className="w-4 h-4" />
+                  <span className="text-xs font-bold uppercase tracking-wider">Iframe Embed</span>
+                </div>
+                
+                <div className="relative">
+                  <textarea
+                    readOnly
+                    rows={4}
+                    value={`<iframe \n  src="${typeof window !== 'undefined' ? window.location.origin : ''}/f/${form?.id}" \n  width="100%" \n  height="600px" \n  frameborder="0" \n  style="border:none; border-radius:12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);">\n</iframe>`}
+                    className="w-full p-3 bg-white border border-gray-200 rounded-xl text-[10px] font-mono text-gray-500 outline-none resize-none leading-relaxed"
+                  />
+                  <button 
+                    onClick={() => {
+                      const code = `<iframe src="${window.location.origin}/f/${form?.id}" width="100%" height="600px" frameborder="0" style="border:none; border-radius:12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);"></iframe>`;
+                      navigator.clipboard.writeText(code)
+                      alert('Embed code copied!')
+                    }}
+                    className="absolute right-3 bottom-3 p-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded-lg transition-all shadow-sm"
+                    title="Copy Code"
+                  >
+                    <Copy className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="mt-4 pt-4 border-t border-gray-200/50">
+                  <div className="flex items-center gap-2 text-pink-600 mb-2">
+                    <Code className="w-4 h-4" />
+                    <span className="text-xs font-bold uppercase tracking-wider">Script Embed</span>
+                  </div>
+                  <div className="relative">
+                    <textarea
+                      readOnly
+                      rows={4}
+                      value={`<div id="form-container"></div>\n<script>\n  (function() {\n    const div = document.getElementById('form-container');\n    const ifr = document.createElement('iframe');\n    ifr.src = "${typeof window !== 'undefined' ? window.location.origin : ''}/f/${form?.id}";\n    ifr.style.width = '100%';\n    ifr.style.height = '600px';\n    ifr.style.border = 'none';\n    div.appendChild(ifr);\n  })();\n</script>`}
+                      className="w-full p-3 bg-white border border-gray-200 rounded-xl text-[10px] font-mono text-gray-500 outline-none resize-none leading-relaxed"
+                    />
+                    <button 
+                      onClick={() => {
+                        const code = `<div id="form-container"></div><script>(function(){const div=document.getElementById('form-container');const ifr=document.createElement('iframe');ifr.src="${window.location.origin}/f/${form?.id}";ifr.style.width='100%';ifr.style.height='600px';ifr.style.border='none';div.appendChild(ifr);})();</script>`;
+                        navigator.clipboard.writeText(code)
+                        alert('Script code copied!')
+                      }}
+                      className="absolute right-3 bottom-3 p-2 bg-pink-50 text-pink-600 hover:bg-pink-600 hover:text-white rounded-lg transition-all shadow-sm"
+                      title="Copy Code"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
           </motion.div>
         )}
       </div>
