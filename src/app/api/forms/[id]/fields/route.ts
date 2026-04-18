@@ -55,7 +55,8 @@ export async function PUT(
                 options: field.options || null,
                 placeholder: field.placeholder || null,
                 logic_rules: field.logicRules || null, // Map the camelCase payload to snake_case DB column
-                order: index
+                order: index,
+                page_index: field.pageIndex || 0
             }))
 
             const { error: insertError } = await supabase

@@ -63,6 +63,22 @@ export function FieldSettingsPanel() {
             <div className="space-y-4">
               <div>
                 <label className="block text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-1.5">
+                  Field Location
+                </label>
+                <select
+                  value={activeField.pageIndex}
+                  onChange={(e) => updateField(activeField.id, { pageIndex: parseInt(e.target.value) })}
+                  className="w-full px-3 py-2 bg-indigo-50/50 border border-indigo-100 rounded-lg text-sm font-bold text-indigo-700 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all appearance-none cursor-pointer"
+                >
+                  {Array.from({ length: Math.max(1, ...fields.map(f => f.pageIndex)) + 1 }).map((_, i) => (
+                    <option key={i} value={i}>Page {i + 1}</option>
+                  ))}
+                  <option value={Math.max(0, ...fields.map(f => f.pageIndex)) + 1}>+ Create Page {Math.max(1, ...fields.map(f => f.pageIndex)) + 2}</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-1.5">
                   Field Label
                 </label>
                 <input

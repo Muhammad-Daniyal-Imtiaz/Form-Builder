@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react'
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { FormField, CustomStyles, DEFAULT_STYLES, FieldType, FormSettings, DEFAULT_SETTINGS, PRESET_THEMES } from './types'
 
 interface BuilderContextType {
@@ -30,6 +30,8 @@ interface BuilderContextType {
   
   // Field Actions
   addField: (type: FieldType) => void;
+  addPage: () => void;
+  removePage: (pageIndex: number) => void;
   updateField: (id: string, updates: Partial<FormField>) => void;
   removeField: (id: string) => void;
   duplicateField: (id: string) => void;
@@ -99,7 +101,8 @@ export function BuilderProvider({ children, formId }: { children: React.ReactNod
       const loadedFields = (data.form_fields || []).map((f: any) => ({
         ...f,
         id: f.id || crypto.randomUUID(),
-        logicRules: f.logic_rules || f.logicRules || []
+        logicRules: f.logic_rules || f.logicRules || [],
+        pageIndex: f.page_index || 0
       }))
       setFields(loadedFields)
     } catch (err: any) {
@@ -165,18 +168,52 @@ export function BuilderProvider({ children, formId }: { children: React.ReactNod
 
 
   const addField = useCallback((type: FieldType) => {
-    const newField: FormField = {
-      id: crypto.randomUUID(),
+    const id = crypto.randomUUID()
+    setFields(prev => [...prev, { 
+      id, 
+      type, 
       label: `New ${type.charAt(0).toUpperCase() + type.slice(1)} Field`,
-      type,
       required: false,
       options: ['select', 'multiselect', 'radio', 'checkbox'].includes(type) ? ['Option 1', 'Option 2', 'Option 3'] : null,
-      placeholder: null,
-      ...(type === 'file' || type === 'multifile' ? { fileMode: 'upload' } : {})
-    }
-    setFields(prev => [...prev, newField])
-    setActiveFieldId(newField.id)
+      placeholder: 'Enter placeholder...',
+      logicRules: [],
+      pageIndex: prev.length > 0 ? Math.max(...prev.map(f => f.pageIndex)) : 0
+    }])
+    setActiveFieldId(id)
   }, [])
+
+  const addPage = useCallback(() => {
+    setFields(prev => {
+      const maxPage = prev.length > 0 ? Math.max(...prev.map(f => f.pageIndex)) : 0
+      const id = crypto.randomUUID()
+      const newField: FormField = {
+        id,
+        type: 'text',
+        label: 'New Question on New Page',
+        required: false,
+        options: null,
+        placeholder: 'Enter text...',
+        logicRules: [],
+        pageIndex: maxPage + 1
+      }
+      return [...prev, newField]
+    })
+  }, [])
+
+  const removePage = useCallback((pageIdx: number) => {
+    setFields(prev => {
+      // 1. Remove fields on that page
+      // 2. Shift all subsequent pages down by 1
+      return prev
+        .filter(f => f.pageIndex !== pageIdx)
+        .map(f => f.pageIndex > pageIdx ? { ...f, pageIndex: f.pageIndex - 1 } : f)
+    })
+  }, [])
+
+  const pageCount = useMemo(() => {
+    if (fields.length === 0) return 1
+    return Math.max(...fields.map(f => f.pageIndex)) + 1
+  }, [fields])
 
   const updateField = useCallback((id: string, updates: Partial<FormField>) => {
     setFields(prev => prev.map(f => f.id === id ? { ...f, ...updates } : f))
@@ -227,13 +264,13 @@ export function BuilderProvider({ children, formId }: { children: React.ReactNod
   return (
     <BuilderContext.Provider value={{
       formId, form, fields, customStyles, formSettings,
-      loading, saving, saved, error, activeFieldId, sidebarTab,
+      loading, saving, saved, error, activeFieldId, sidebarTab, pageCount,
       setSidebarTab, setActiveFieldId, 
       updateFormDetails: (u) => setForm((p: any) => ({ ...p, ...u })),
       updateStyles: (u) => setCustomStyles(p => ({ ...p, ...u })),
       updateFormSettings: (u) => setFormSettings(p => ({ ...p, ...u })),
       applyThemePreset,
-      setFields, addField, updateField, removeField, duplicateField,
+      setFields, addField, addPage, removePage, updateField, removeField, duplicateField,
       addOption, updateOption, removeOption,
       save
     }}>

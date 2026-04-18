@@ -146,7 +146,11 @@ function SortableFieldItem({ field }: { field: FormField }) {
 }
 
 export function Canvas() {
-  const { form, fields, setFields, customStyles, setActiveFieldId, formSettings } = useBuilder()
+  const { 
+    form, fields, setFields, customStyles, 
+    setActiveFieldId, formSettings, addPage, 
+    removePage, pageCount 
+  } = useBuilder()
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -266,34 +270,72 @@ export function Canvas() {
         </div>
 
         {/* Fields Area */}
-        <div className="p-8 space-y-4">
+        <div className="p-8 space-y-12">
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
             onDragEnd={handleDragEnd}
           >
-            <SortableContext
-              items={fields.map(f => f.id)}
-              strategy={verticalListSortingStrategy}
-            >
-              {fields.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-20 bg-gray-50/50 rounded-2xl border-2 border-dashed border-gray-200">
-                  <div className="w-16 h-16 bg-white rounded-2xl shadow-sm border border-gray-100 flex items-center justify-center mb-4">
-                    <Plus className="w-6 h-6 text-gray-400" />
+            {Array.from({ length: pageCount }).map((_, pIdx) => {
+              const pageFields = fields.filter(f => f.pageIndex === pIdx)
+              
+              return (
+                <div key={pIdx} className="space-y-4 relative">
+                  {/* Page Divider / Header */}
+                  <div className="flex items-center justify-between mb-6 group/page">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-md">
+                        {pIdx + 1}
+                      </div>
+                      <h4 className="text-xs font-black uppercase tracking-widest text-gray-400">Page {pIdx + 1}</h4>
+                    </div>
+                    {pageCount > 1 && (
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); removePage(pIdx) }}
+                        className="opacity-0 group-hover/page:opacity-100 px-3 py-1 text-[10px] font-bold text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                      >
+                        Delete Page
+                      </button>
+                    )}
                   </div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">Build your form</h3>
-                  <p className="text-gray-500 max-w-sm text-center text-sm">Click any field in the left sidebar to add it to your canvas.</p>
+
+                  <SortableContext
+                    items={pageFields.map(f => f.id)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {pageFields.length === 0 ? (
+                      <div className="py-10 border-2 border-dashed border-gray-100 rounded-2xl flex flex-col items-center justify-center text-gray-300">
+                        <p className="text-[10px] font-bold uppercase tracking-widest">Empty Page</p>
+                      </div>
+                    ) : (
+                      pageFields.map((field) => (
+                        <SortableFieldItem key={field.id} field={field} />
+                      ))
+                    )}
+                  </SortableContext>
+                  
+                  {/* Connection Line */}
+                  {pIdx < pageCount - 1 && (
+                    <div className="absolute -bottom-10 left-4 w-px h-8 bg-gray-100" />
+                  )}
                 </div>
-              ) : (
-                fields.map((field) => (
-                  <SortableFieldItem key={field.id} field={field} />
-                ))
-              )}
-            </SortableContext>
+              )
+            })}
           </DndContext>
+
+          {/* Add Page Control */}
+          <div className="flex justify-center pt-4">
+            <button
+              onClick={(e) => { e.stopPropagation(); addPage() }}
+              className="flex items-center gap-2 px-6 py-3 bg-white border border-dashed border-gray-300 rounded-2xl text-xs font-bold text-indigo-600 hover:border-indigo-400 hover:bg-indigo-50/50 transition-all shadow-sm"
+            >
+              <Plus className="w-4 h-4" />
+              Add New Page Break
+            </button>
+          </div>
           
           {fields.length > 0 && (
-            <div className="pt-8 mt-8 border-t border-gray-100">
+            <div className="pt-8 mt-4 border-t border-gray-100">
               <button 
                 disabled 
                 className="w-full py-4 rounded-xl text-white font-bold text-lg opacity-80 cursor-not-allowed transition-colors"

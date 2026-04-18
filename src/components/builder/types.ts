@@ -17,6 +17,7 @@ export interface FormField {
   placeholder: string | null;
   fileMode?: 'upload' | 'link';
   logicRules?: FieldLogicRule[];
+  pageIndex: number;
 }
 
 export interface CustomStyles {

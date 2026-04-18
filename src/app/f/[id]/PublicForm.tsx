@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { motion, AnimatePresence } from 'framer-motion'
 
 interface CustomStyles {
   headerBg: string
@@ -98,12 +99,19 @@ export default function PublicForm({
   const [data, setData] = useState<Record<string, any>>({})
   const [files, setFiles] = useState<Record<string, any>>({})
   const [fileModes, setFileModes] = useState<Record<string, 'upload' | 'link'>>({})
+  const [currentPage, setCurrentPage] = useState(0)
   const [loading, setLoading] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState('')
 
   const cs: CustomStyles = { ...DEFAULT_STYLES, ...rawStyles }
   const settings: FormSettings = { ...DEFAULT_SETTINGS, ...rawSettings }
+
+  const fields = form.form_fields || []
+  const maxPage = fields.length > 0 ? Math.max(...fields.map((f: any) => f.page_index || 0)) : 0
+  const isLastPage = currentPage === maxPage
+
+  const currentPageFields = fields.filter((f: any) => (f.page_index || 0) === currentPage)
 
   // --- LOGIC ENGINE ---
   const isFieldTargetOfShowRule = (targetId: string) => {
@@ -225,14 +233,52 @@ export default function PublicForm({
     }
   }
 
+  const handleNext = () => {
+    // Basic validation for current page
+    const missingFields = currentPageFields.filter((f: any) => {
+      const key = f.id || f.label
+      return f.required && isFieldVisible(key) && (data[key] === undefined || data[key] === '' || (Array.isArray(data[key]) && data[key].length === 0))
+    })
+
+    if (missingFields.length > 0) {
+      setError(`Please fill all required fields before proceeding: ${missingFields[0].label}`)
+      return
+    }
+
+    setError('')
+    if (currentPage < maxPage) {
+      setCurrentPage(prev => prev + 1)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }
+
+  const handleBack = () => {
+    if (currentPage > 0) {
+      setCurrentPage(prev => prev - 1)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Final validation
+    const missingFields = currentPageFields.filter((f: any) => {
+      const key = f.id || f.label
+      return f.required && isFieldVisible(key) && (data[key] === undefined || data[key] === '' || (Array.isArray(data[key]) && data[key].length === 0))
+    })
+
+    if (missingFields.length > 0) {
+      setError(`Please fill all required fields: ${missingFields[0].label}`)
+      return
+    }
+
     setLoading(true)
     setError('')
     try {
       // Filter out hidden fields from submission
       const activeData: Record<string, any> = {}
-      form.form_fields?.forEach((f: any) => {
+      fields.forEach((f: any) => {
         const key = f.id || f.label
         if (isFieldVisible(key) && data[key] !== undefined) {
           activeData[key] = data[key]
@@ -354,232 +400,270 @@ export default function PublicForm({
       `}</style>
 
       {error && (
-        <div className="mb-8 p-4 bg-red-50 border-l-4 border-red-500 rounded-lg text-[0.9em]">
+        <div className="mb-8 p-4 bg-red-50 border-l-4 border-red-500 rounded-lg text-[0.9em] animate-in slide-in-from-top duration-300">
           <div className="flex items-start gap-3">
             <svg className="h-5 w-5 text-red-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
             <div>
-              <h3 className="text-sm font-bold text-red-800">Submission Error</h3>
+              <h3 className="text-sm font-bold text-red-800">Please correct the following</h3>
               <p className="text-sm text-red-700 mt-1">{error}</p>
             </div>
           </div>
         </div>
       )}
 
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: `${cs.fieldSpacing}px` }}>
-        {form.form_fields?.map((field: any, index: number) => {
-          const fieldKey = field.id || field.label
-          if (!isFieldVisible(fieldKey)) return null;
+      {/* Progress Bar */}
+      {maxPage > 0 && (
+        <div className="w-full h-1.5 bg-gray-100 rounded-full mb-10 overflow-hidden">
+          <motion.div 
+            initial={{ width: 0 }}
+            animate={{ width: `${((currentPage + 1) / (maxPage + 1)) * 100}%` }}
+            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            className="h-full"
+            style={{ background: cs.accentColor }}
+          />
+        </div>
+      )}
 
-          return (
-            <div key={index} id={`field-${fieldKey}`} className="space-y-2 rounded-xl transition-all duration-300">
-              <label style={labelStyle}>
-                {field.label}
-                {field.required && <span style={{ color: cs.accentColor }} className="ml-1.5">*</span>}
-              </label>
-
-              {field.type === 'text' && (
-                <input type="text" required={field.required} placeholder={field.placeholder || ''}
-                  onChange={e => handleInputChange(fieldKey, e.target.value)}
-                  style={getInternalInputStyle()}
-                  onFocus={e => { e.target.style.borderColor = cs.accentColor }}
-                  onBlur={e => { e.target.style.borderColor = cs.inputBorderColor }}
-                />
-              )}
-
-              {field.type === 'email' && (
-                <input type="email" required={field.required} placeholder={field.placeholder || 'name@example.com'}
-                  onChange={e => handleInputChange(fieldKey, e.target.value)}
-                  style={getInternalInputStyle()}
-                  onFocus={e => { e.target.style.borderColor = cs.accentColor }}
-                  onBlur={e => { e.target.style.borderColor = cs.inputBorderColor }}
-                />
-              )}
-
-              {field.type === 'number' && (
-                <input type="number" required={field.required} placeholder={field.placeholder || ''}
-                  onChange={e => handleInputChange(fieldKey, Number(e.target.value))}
-                  style={getInternalInputStyle()}
-                  onFocus={e => { e.target.style.borderColor = cs.accentColor }}
-                  onBlur={e => { e.target.style.borderColor = cs.inputBorderColor }}
-                />
-              )}
-
-              {field.type === 'textarea' && (
-                <textarea required={field.required} rows={4} placeholder={field.placeholder || ''}
-                  onChange={e => handleInputChange(fieldKey, e.target.value)}
-                  style={{ ...getInternalInputStyle(), resize: 'vertical' }}
-                  onFocus={e => { e.target.style.borderColor = cs.accentColor }}
-                  onBlur={e => { e.target.style.borderColor = cs.inputBorderColor }}
-                />
-              )}
-
-              {field.type === 'select' && (
-                <div className="relative">
-                  <select required={field.required}
-                    onChange={e => handleInputChange(fieldKey, e.target.value)}
-                    style={{ ...getInternalInputStyle(), appearance: 'none' }}
-                    defaultValue=""
-                    onFocus={e => { e.target.style.borderColor = cs.accentColor }}
-                    onBlur={e => { e.target.style.borderColor = cs.inputBorderColor }}
-                  >
-                    <option value="" disabled>Select an option...</option>
-                    {field.options?.map((opt: string, i: number) => <option key={i} value={opt}>{opt}</option>)}
-                  </select>
-                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4" style={{ color: cs.accentColor }}>
-                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
-                  </div>
-                </div>
-              )}
-
-              {field.type === 'multiselect' && (
-                <div>
-                  <select multiple required={field.required}
-                    onChange={e => {
-                      const selected = Array.from(e.target.selectedOptions, o => o.value)
-                      handleInputChange(fieldKey, selected)
-                    }}
-                    style={{ ...getInternalInputStyle(), minHeight: '130px' }}
-                    onFocus={e => { e.target.style.borderColor = cs.accentColor }}
-                    onBlur={e => { e.target.style.borderColor = cs.inputBorderColor }}
-                  >
-                    {field.options?.map((opt: string, i: number) => <option key={i} value={opt}>{opt}</option>)}
-                  </select>
-                  <p className="text-xs mt-1.5 opacity-60" style={{ color: cs.bodyText }}>Hold Ctrl / Cmd to select multiple</p>
-                </div>
-              )}
-
-              {field.type === 'radio' && (
-                <div className="space-y-2.5 mt-1">
-                  {field.options?.map((opt: string, i: number) => (
-                    <label key={i} className="flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer transition-all" style={{ border: `1.5px solid ${cs.inputBorderColor}`, background: cs.inputBg }}>
-                      <input type="radio" name={fieldKey} value={opt} required={field.required}
-                        onChange={e => handleInputChange(fieldKey, e.target.value)}
-                        className="w-4 h-4" style={{ accentColor: cs.accentColor }}
-                      />
-                      <span style={{ color: cs.bodyText, fontFamily: 'inherit' }}>{opt}</span>
-                    </label>
-                  ))}
-                </div>
-              )}
-
-              {field.type === 'checkbox' && (
-                <div className="space-y-2.5 mt-1">
-                  {field.options?.map((opt: string, i: number) => (
-                    <label key={i} className="flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer transition-all" style={{ border: `1.5px solid ${cs.inputBorderColor}`, background: cs.inputBg }}>
-                      <input type="checkbox" value={opt}
-                        onChange={e => handleCheckboxChange(fieldKey, opt, e.target.checked)}
-                        className="w-4 h-4 rounded" style={{ accentColor: cs.accentColor }}
-                      />
-                      <span style={{ color: cs.bodyText, fontFamily: 'inherit' }}>{opt}</span>
-                    </label>
-                  ))}
-                </div>
-              )}
-
-              {['file', 'multifile'].includes(field.type) && (() => {
-                const mode = fileModes[fieldKey] || 'upload'
-                return (
-                  <div>
-                    {/* Toggle */}
-                    <div className="flex bg-gray-100/80 rounded-lg p-1 w-fit mb-3 border border-gray-200" style={{ background: cs.inputBg }}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setFileModes({ ...fileModes, [fieldKey]: 'upload' })
-                          handleInputChange(fieldKey, files[fieldKey]) // restore file submit data
-                        }}
-                        className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${mode === 'upload' ? 'bg-white shadow-sm' : 'opacity-60 hover:opacity-100'}`}
-                        style={{ color: mode === 'upload' ? cs.accentColor : cs.bodyText }}
-                      >
-                        Upload File
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setFileModes({ ...fileModes, [fieldKey]: 'link' })
-                          handleInputChange(fieldKey, null) // clear upload data in form submit
-                        }}
-                        className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${mode === 'link' ? 'bg-white shadow-sm' : 'opacity-60 hover:opacity-100'}`}
-                        style={{ color: mode === 'link' ? cs.accentColor : cs.bodyText }}
-                      >
-                        Paste Link
-                      </button>
-                    </div>
-
-                    {mode === 'upload' ? (
-                      <label className="flex flex-col items-center justify-center w-full h-44 rounded-xl border-2 border-dashed cursor-pointer transition-colors"
-                        style={{ borderColor: files[fieldKey] ? cs.accentColor : cs.inputBorderColor, background: files[fieldKey] ? cs.accentColor + '0d' : cs.inputBg }}>
-                        <div className="flex flex-col items-center justify-center text-center px-6">
-                          {files[fieldKey] ? (
-                            <>
-                              <svg className="w-10 h-10 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: cs.accentColor }}>
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                              </svg>
-                              <p className="text-sm font-semibold" style={{ color: cs.accentColor }}>
-                                {Array.isArray(files[fieldKey]) ? `${files[fieldKey].length} files attached` : files[fieldKey].fileName}
-                              </p>
-                              {field.type === 'multifile' && <p className="text-xs mt-1 opacity-60" style={{ color: cs.bodyText }}>Click to add more</p>}
-                            </>
-                          ) : (
-                            <>
-                              <svg className="w-10 h-10 mb-2 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: cs.bodyText }}>
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                              </svg>
-                              <p className="text-sm" style={{ color: cs.bodyText }}>
-                                <span className="font-bold" style={{ color: cs.accentColor }}>Click to upload</span> {field.type === 'multifile' ? 'multiple files' : 'a file'}
-                              </p>
-                              <p className="text-xs mt-1 opacity-50" style={{ color: cs.bodyText }}>PNG, JPG, PDF up to 50MB</p>
-                            </>
-                          )}
-                        </div>
-                        <input type="file" className="hidden" multiple={field.type === 'multifile'} required={field.required && !files[fieldKey]}
-                          onChange={e => { if (e.target.files?.length) handleFileChange(fieldKey, e.target.files, field.type === 'multifile') }}
-                        />
-                      </label>
-                    ) : (
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none" style={{ color: cs.bodyText, opacity: 0.4 }}>
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
-                        </div>
-                        <input 
-                          type="url" 
-                          required={field.required && typeof data[fieldKey] !== 'string'} 
-                          placeholder="https://drive.google.com/..."
-                          value={typeof data[fieldKey] === 'string' ? data[fieldKey] : ''}
-                          onChange={e => handleInputChange(fieldKey, e.target.value)}
-                          style={{ ...getInternalInputStyle(), paddingLeft: '2.75rem' }}
-                          onFocus={e => { e.target.style.borderColor = cs.accentColor }}
-                          onBlur={e => { e.target.style.borderColor = cs.inputBorderColor }}
-                        />
-                      </div>
-                    )}
-                  </div>
-                )
-              })()}
-            </div>
-          )
-        })}
-
-        {/* Submit */}
-        <div className="pt-6 mt-4" style={{ borderTop: `1.5px solid ${cs.inputBorderColor}` }}>
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-4 px-6 text-lg font-bold transition-all disabled:opacity-60 hover:opacity-95 active:scale-[0.99] shadow-md hover:shadow-lg"
-            style={{ background: cs.accentColor, color: cs.buttonText, fontFamily: 'inherit', borderRadius: btnRadius }}
+      <form onSubmit={handleSubmit} className="overflow-hidden relative min-h-[400px]">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentPage}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
+            style={{ display: 'flex', flexDirection: 'column', gap: `${cs.fieldSpacing}px` }}
           >
-            {loading ? (
-              <span className="flex items-center justify-center gap-2">
-                <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
-                Submitting...
-              </span>
-            ) : (settings.submitButtonText || 'Submit Form')}
-          </button>
+            {currentPageFields.map((field: any, index: number) => {
+              const fieldKey = field.id || field.label
+              if (!isFieldVisible(fieldKey)) return null;
+
+              return (
+                <div key={fieldKey} id={`field-${fieldKey}`} className="space-y-2 rounded-xl transition-all duration-300">
+                  <label style={labelStyle}>
+                    {field.label}
+                    {field.required && <span style={{ color: cs.accentColor }} className="ml-1.5">*</span>}
+                  </label>
+
+                  {field.type === 'text' && (
+                    <input type="text" placeholder={field.placeholder || ''}
+                      onChange={e => handleInputChange(fieldKey, e.target.value)}
+                      style={getInternalInputStyle()}
+                      onFocus={e => { e.target.style.borderColor = cs.accentColor }}
+                      onBlur={e => { e.target.style.borderColor = cs.inputBorderColor }}
+                    />
+                  )}
+
+                  {field.type === 'email' && (
+                    <input type="email" placeholder={field.placeholder || 'name@example.com'}
+                      onChange={e => handleInputChange(fieldKey, e.target.value)}
+                      style={getInternalInputStyle()}
+                      onFocus={e => { e.target.style.borderColor = cs.accentColor }}
+                      onBlur={e => { e.target.style.borderColor = cs.inputBorderColor }}
+                    />
+                  )}
+
+                  {field.type === 'number' && (
+                    <input type="number" placeholder={field.placeholder || ''}
+                      onChange={e => handleInputChange(fieldKey, Number(e.target.value))}
+                      style={getInternalInputStyle()}
+                      onFocus={e => { e.target.style.borderColor = cs.accentColor }}
+                      onBlur={e => { e.target.style.borderColor = cs.inputBorderColor }}
+                    />
+                  )}
+
+                  {field.type === 'textarea' && (
+                    <textarea rows={4} placeholder={field.placeholder || ''}
+                      onChange={e => handleInputChange(fieldKey, e.target.value)}
+                      style={{ ...getInternalInputStyle(), resize: 'vertical' }}
+                      onFocus={e => { e.target.style.borderColor = cs.accentColor }}
+                      onBlur={e => { e.target.style.borderColor = cs.inputBorderColor }}
+                    />
+                  )}
+
+                  {field.type === 'select' && (
+                    <div className="relative">
+                      <select 
+                        onChange={e => handleInputChange(fieldKey, e.target.value)}
+                        style={{ ...getInternalInputStyle(), appearance: 'none' }}
+                        defaultValue=""
+                        onFocus={e => { e.target.style.borderColor = cs.accentColor }}
+                        onBlur={e => { e.target.style.borderColor = cs.inputBorderColor }}
+                      >
+                        <option value="" disabled>Select an option...</option>
+                        {field.options?.map((opt: string, i: number) => <option key={i} value={opt}>{opt}</option>)}
+                      </select>
+                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4" style={{ color: cs.accentColor }}>
+                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                      </div>
+                    </div>
+                  )}
+
+                  {field.type === 'multiselect' && (
+                    <div>
+                      <select multiple 
+                        onChange={e => {
+                          const selected = Array.from(e.target.selectedOptions, o => o.value)
+                          handleInputChange(fieldKey, selected)
+                        }}
+                        style={{ ...getInternalInputStyle(), minHeight: '130px' }}
+                        onFocus={e => { e.target.style.borderColor = cs.accentColor }}
+                        onBlur={e => { e.target.style.borderColor = cs.inputBorderColor }}
+                      >
+                        {field.options?.map((opt: string, i: number) => <option key={i} value={opt}>{opt}</option>)}
+                      </select>
+                      <p className="text-xs mt-1.5 opacity-60" style={{ color: cs.bodyText }}>Hold Ctrl / Cmd to select multiple</p>
+                    </div>
+                  )}
+
+                  {field.type === 'radio' && (
+                    <div className="space-y-2.5 mt-1">
+                      {field.options?.map((opt: string, i: number) => (
+                        <label key={i} className="flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer transition-all" style={{ border: `1.5px solid ${cs.inputBorderColor}`, background: cs.inputBg }}>
+                          <input type="radio" name={fieldKey} value={opt} 
+                            onChange={e => handleInputChange(fieldKey, e.target.value)}
+                            className="w-4 h-4" style={{ accentColor: cs.accentColor }}
+                          />
+                          <span style={{ color: cs.bodyText, fontFamily: 'inherit' }}>{opt}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+
+                  {field.type === 'checkbox' && (
+                    <div className="space-y-2.5 mt-1">
+                      {field.options?.map((opt: string, i: number) => (
+                        <label key={i} className="flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer transition-all" style={{ border: `1.5px solid ${cs.inputBorderColor}`, background: cs.inputBg }}>
+                          <input type="checkbox" value={opt}
+                            onChange={e => handleCheckboxChange(fieldKey, opt, e.target.checked)}
+                            className="w-4 h-4 rounded" style={{ accentColor: cs.accentColor }}
+                          />
+                          <span style={{ color: cs.bodyText, fontFamily: 'inherit' }}>{opt}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+
+                  {['file', 'multifile'].includes(field.type) && (() => {
+                    const mode = fileModes[fieldKey] || 'upload'
+                    return (
+                      <div>
+                        {/* Toggle */}
+                        <div className="flex bg-gray-100/80 rounded-lg p-1 w-fit mb-3 border border-gray-200" style={{ background: cs.inputBg }}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFileModes({ ...fileModes, [fieldKey]: 'upload' })
+                              handleInputChange(fieldKey, files[fieldKey]) 
+                            }}
+                            className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${mode === 'upload' ? 'bg-white shadow-sm' : 'opacity-60 hover:opacity-100'}`}
+                            style={{ color: mode === 'upload' ? cs.accentColor : cs.bodyText }}
+                          >
+                            Upload File
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFileModes({ ...fileModes, [fieldKey]: 'link' })
+                              handleInputChange(fieldKey, null) 
+                            }}
+                            className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${mode === 'link' ? 'bg-white shadow-sm' : 'opacity-60 hover:opacity-100'}`}
+                            style={{ color: mode === 'link' ? cs.accentColor : cs.bodyText }}
+                          >
+                            Paste Link
+                          </button>
+                        </div>
+
+                        {mode === 'upload' ? (
+                          <label className="flex flex-col items-center justify-center w-full h-44 rounded-xl border-2 border-dashed cursor-pointer transition-colors"
+                            style={{ borderColor: files[fieldKey] ? cs.accentColor : cs.inputBorderColor, background: files[fieldKey] ? cs.accentColor + '0d' : cs.inputBg }}>
+                            <div className="flex flex-col items-center justify-center text-center px-6">
+                              {files[fieldKey] ? (
+                                <>
+                                  <svg className="w-10 h-10 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: cs.accentColor }}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                  <p className="text-sm font-semibold" style={{ color: cs.accentColor }}>
+                                    {Array.isArray(files[fieldKey]) ? `${files[fieldKey].length} files attached` : files[fieldKey].fileName}
+                                  </p>
+                                  {field.type === 'multifile' && <p className="text-xs mt-1 opacity-60" style={{ color: cs.bodyText }}>Click to add more</p>}
+                                </>
+                              ) : (
+                                <>
+                                  <svg className="w-10 h-10 mb-2 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: cs.bodyText }}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                  </svg>
+                                  <p className="text-sm" style={{ color: cs.bodyText }}>
+                                    <span className="font-bold" style={{ color: cs.accentColor }}>Click to upload</span> {field.type === 'multifile' ? 'multiple files' : 'a file'}
+                                  </p>
+                                  <p className="text-xs mt-1 opacity-50" style={{ color: cs.bodyText }}>PNG, JPG, PDF up to 50MB</p>
+                                </>
+                              )}
+                            </div>
+                            <input type="file" className="hidden" multiple={field.type === 'multifile'} 
+                              onChange={e => { if (e.target.files?.length) handleFileChange(fieldKey, e.target.files, field.type === 'multifile') }}
+                            />
+                          </label>
+                        ) : (
+                          <div className="relative">
+                            <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none" style={{ color: cs.bodyText, opacity: 0.4 }}>
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                            </div>
+                            <input 
+                              type="url" 
+                              placeholder="https://drive.google.com/..."
+                              value={typeof data[fieldKey] === 'string' ? data[fieldKey] : ''}
+                              onChange={e => handleInputChange(fieldKey, e.target.value)}
+                              style={{ ...getInternalInputStyle(), paddingLeft: '2.75rem' }}
+                              onFocus={e => { e.target.style.borderColor = cs.accentColor }}
+                              onBlur={e => { e.target.style.borderColor = cs.inputBorderColor }}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })()}
+                </div>
+              )
+            })}
+          </motion.div>
+        </AnimatePresence>
+
+        {/* Navigation Controls */}
+        <div className="pt-10 mt-6 flex gap-4" style={{ borderTop: `1px solid ${cs.inputBorderColor}40` }}>
+          {currentPage > 0 && (
+            <button
+              type="button"
+              onClick={handleBack}
+              disabled={loading}
+              className="flex-1 py-4 px-6 text-lg font-bold transition-all hover:bg-gray-50 active:scale-[0.99] border-2"
+              style={{ color: cs.bodyText, borderColor: cs.inputBorderColor, borderRadius: btnRadius }}
+            >
+              Back
+            </button>
+          )}
+          
+          {isLastPage ? (
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex-[2] py-4 px-6 text-lg font-bold transition-all disabled:opacity-60 hover:opacity-95 active:scale-[0.99] shadow-lg"
+              style={{ background: cs.accentColor, color: cs.buttonText, fontFamily: 'inherit', borderRadius: btnRadius }}
+            >
+              {loading ? 'Submitting...' : (settings.submitButtonText || 'Submit Form')}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleNext}
+              className="flex-[2] py-4 px-6 text-lg font-bold transition-all hover:opacity-95 active:scale-[0.99] shadow-lg"
+              style={{ background: cs.accentColor, color: cs.buttonText, fontFamily: 'inherit', borderRadius: btnRadius }}
+            >
+              Next Step
+            </button>
+          )}
         </div>
       </form>
     </div>
