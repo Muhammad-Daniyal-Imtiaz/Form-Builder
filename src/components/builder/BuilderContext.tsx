@@ -17,11 +17,16 @@ interface BuilderContextType {
   saved: boolean;
   error: string | null;
   activeFieldId: string | null; // For DND / Selection
-  sidebarTab: 'add' | 'design' | 'settings' | 'share';
+  sidebarTab: 'fields' | 'design' | 'settings' | 'share';
+  pageCount: number;
+  builderViewMode: 'all' | 'single';
+  builderActivePage: number;
   
   // Actions
-  setSidebarTab: (tab: 'add' | 'design' | 'settings' | 'share') => void;
+  setSidebarTab: (tab: 'fields' | 'design' | 'settings' | 'share') => void;
   setActiveFieldId: (id: string | null) => void;
+  setBuilderViewMode: (mode: 'all' | 'single') => void;
+  setBuilderActivePage: (page: number) => void;
   updateFormDetails: (updates: Partial<any>) => void;
   updateStyles: (updates: Partial<CustomStyles>) => void;
   updateFormSettings: (updates: Partial<FormSettings>) => void;
@@ -59,7 +64,9 @@ export function BuilderProvider({ children, formId }: { children: React.ReactNod
   const [error, setError] = useState<string | null>(null)
   
   const [activeFieldId, setActiveFieldId] = useState<string | null>(null)
-  const [sidebarTab, setSidebarTab] = useState<'add' | 'design' | 'settings' | 'share'>('add')
+  const [sidebarTab, setSidebarTab] = useState<'fields' | 'design' | 'settings' | 'share'>('fields')
+  const [builderViewMode, setBuilderViewMode] = useState<'all' | 'single'>('all')
+  const [builderActivePage, setBuilderActivePage] = useState(0)
   
   // We use this to debounce auto-saves if we want, but for now manual or on-blur save
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -265,7 +272,9 @@ export function BuilderProvider({ children, formId }: { children: React.ReactNod
     <BuilderContext.Provider value={{
       formId, form, fields, customStyles, formSettings,
       loading, saving, saved, error, activeFieldId, sidebarTab, pageCount,
+      builderViewMode, builderActivePage,
       setSidebarTab, setActiveFieldId, 
+      setBuilderViewMode, setBuilderActivePage,
       updateFormDetails: (u) => setForm((p: any) => ({ ...p, ...u })),
       updateStyles: (u) => setCustomStyles(p => ({ ...p, ...u })),
       updateFormSettings: (u) => setFormSettings(p => ({ ...p, ...u })),

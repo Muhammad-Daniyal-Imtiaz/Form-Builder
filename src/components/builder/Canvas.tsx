@@ -149,7 +149,9 @@ export function Canvas() {
   const { 
     form, fields, setFields, customStyles, 
     setActiveFieldId, formSettings, addPage, 
-    removePage, pageCount 
+    removePage, pageCount,
+    builderViewMode, setBuilderViewMode,
+    builderActivePage, setBuilderActivePage
   } = useBuilder()
 
   const sensors = useSensors(
@@ -269,6 +271,52 @@ export function Canvas() {
           />
         </div>
 
+        {/* Canvas Toolbar / View Toggle */}
+        <div className="flex items-center justify-between px-8 py-3 bg-gray-50/80 border-b border-gray-100 backdrop-blur-sm sticky top-0 z-30">
+          <div className="flex bg-white p-1 rounded-xl shadow-sm border border-gray-200">
+            <button
+              onClick={() => setBuilderViewMode('all')}
+              className={cn(
+                "px-4 py-1.5 text-[10px] font-black uppercase tracking-tighter rounded-lg transition-all",
+                builderViewMode === 'all' ? "bg-indigo-600 text-white shadow-md shadow-indigo-200" : "text-gray-400 hover:text-gray-600"
+              )}
+            >
+              All Pages
+            </button>
+            <button
+              onClick={() => setBuilderViewMode('single')}
+              className={cn(
+                "px-4 py-1.5 text-[10px] font-black uppercase tracking-tighter rounded-lg transition-all",
+                builderViewMode === 'single' ? "bg-indigo-600 text-white shadow-md shadow-indigo-200" : "text-gray-400 hover:text-gray-600"
+              )}
+            >
+              Single Step
+            </button>
+          </div>
+
+          {builderViewMode === 'single' && (
+            <div className="flex items-center gap-4">
+              <button 
+                disabled={builderActivePage === 0}
+                onClick={() => setBuilderActivePage(Math.max(0, builderActivePage - 1))}
+                className="p-1.5 text-gray-400 hover:text-indigo-600 disabled:opacity-30 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
+              </button>
+              <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest bg-gray-100 px-3 py-1 rounded-full">
+                Step {builderActivePage + 1} <span className="opacity-40">/ {pageCount}</span>
+              </div>
+              <button 
+                disabled={builderActivePage === pageCount - 1}
+                onClick={() => setBuilderActivePage(Math.min(pageCount - 1, builderActivePage + 1))}
+                className="p-1.5 text-gray-400 hover:text-indigo-600 disabled:opacity-30 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
+              </button>
+            </div>
+          )}
+        </div>
+
         {/* Fields Area */}
         <div className="p-8 space-y-12">
           <DndContext
@@ -277,45 +325,58 @@ export function Canvas() {
             onDragEnd={handleDragEnd}
           >
             {Array.from({ length: pageCount }).map((_, pIdx) => {
+              const isActive = builderViewMode === 'all' || builderActivePage === pIdx
+              if (!isActive) return null
+
               const pageFields = fields.filter(f => f.pageIndex === pIdx)
               
               return (
                 <div key={pIdx} className="space-y-4 relative">
-                  {/* Page Divider / Header */}
-                  <div className="flex items-center justify-between mb-6 group/page">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-md">
-                        {pIdx + 1}
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={pIdx}
+                      initial={builderViewMode === 'single' ? { opacity: 0, x: 20 } : false}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -20 }}
+                      className="space-y-4"
+                    >
+                      {/* Page Divider / Header */}
+                      <div className="flex items-center justify-between mb-6 group/page">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-md shadow-indigo-100">
+                            {pIdx + 1}
+                          </div>
+                          <h4 className="text-xs font-black uppercase tracking-widest text-gray-400">Page {pIdx + 1}</h4>
+                        </div>
+                        {pageCount > 1 && (
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); removePage(pIdx) }}
+                            className="opacity-0 group-hover/page:opacity-100 px-3 py-1 text-[10px] font-bold text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                          >
+                            Delete Page
+                          </button>
+                        )}
                       </div>
-                      <h4 className="text-xs font-black uppercase tracking-widest text-gray-400">Page {pIdx + 1}</h4>
-                    </div>
-                    {pageCount > 1 && (
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); removePage(pIdx) }}
-                        className="opacity-0 group-hover/page:opacity-100 px-3 py-1 text-[10px] font-bold text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                      >
-                        Delete Page
-                      </button>
-                    )}
-                  </div>
 
-                  <SortableContext
-                    items={pageFields.map(f => f.id)}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    {pageFields.length === 0 ? (
-                      <div className="py-10 border-2 border-dashed border-gray-100 rounded-2xl flex flex-col items-center justify-center text-gray-300">
-                        <p className="text-[10px] font-bold uppercase tracking-widest">Empty Page</p>
-                      </div>
-                    ) : (
-                      pageFields.map((field) => (
-                        <SortableFieldItem key={field.id} field={field} />
-                      ))
-                    )}
-                  </SortableContext>
+                      <SortableContext
+                        items={pageFields.map(f => f.id)}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        {pageFields.length === 0 ? (
+                          <div className="py-10 border-2 border-dashed border-indigo-50/50 bg-indigo-50/10 rounded-2xl flex flex-col items-center justify-center text-indigo-300">
+                            <p className="text-[10px] font-bold uppercase tracking-widest">Empty Page</p>
+                          </div>
+                        ) : (
+                          pageFields.map((field) => (
+                            <SortableFieldItem key={field.id} field={field} />
+                          ))
+                        )}
+                      </SortableContext>
+                    </motion.div>
+                  </AnimatePresence>
                   
                   {/* Connection Line */}
-                  {pIdx < pageCount - 1 && (
+                  {pIdx < pageCount - 1 && builderViewMode === 'all' && (
                     <div className="absolute -bottom-10 left-4 w-px h-8 bg-gray-100" />
                   )}
                 </div>
@@ -338,7 +399,7 @@ export function Canvas() {
             <div className="pt-8 mt-4 border-t border-gray-100">
               <button 
                 disabled 
-                className="w-full py-4 rounded-xl text-white font-bold text-lg opacity-80 cursor-not-allowed transition-colors"
+                className="w-full py-4 rounded-xl text-white font-bold text-lg opacity-80 cursor-not-allowed transition-colors shadow-lg shadow-indigo-100"
                 style={{ backgroundColor: customStyles.accentColor }}
               >
                 {formSettings.submitButtonText || 'Submit Form'}
