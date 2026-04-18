@@ -1,4 +1,4 @@
-import { Template } from '../types';
+import { Template } from '../../types';
 
 export const studentFeedback: Template = {
   id: 'edu-student-feedback',

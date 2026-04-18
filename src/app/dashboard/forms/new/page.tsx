@@ -103,7 +103,7 @@ export default function NewFormPage() {
 
           {/* Filters */}
           <div className="flex items-center gap-2 mb-10 overflow-x-auto pb-4 scrollbar-hide no-scrollbar">
-              {['All', 'Business', 'Marketing', 'Feedback', 'Health', 'Education'].map((cat) => (
+              {['All', 'Business', 'Marketing', 'Feedback', 'Health', 'Education', 'Real Estate', 'E-commerce', 'IT', 'HR', 'Creative'].map((cat) => (
                   <button
                     key={cat}
                     onClick={() => setFilter(cat as any)}

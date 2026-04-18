@@ -6,7 +6,17 @@ export interface TemplateField {
   placeholder?: string;
 }
 
-export type TemplateCategory = 'Business' | 'Marketing' | 'Feedback' | 'Health' | 'Education';
+export type TemplateCategory = 
+  | 'Business' 
+  | 'Marketing' 
+  | 'Feedback' 
+  | 'Health' 
+  | 'Education'
+  | 'Real Estate'
+  | 'E-commerce'
+  | 'IT'
+  | 'HR'
+  | 'Creative';
 
 export interface Template {
   id: string;

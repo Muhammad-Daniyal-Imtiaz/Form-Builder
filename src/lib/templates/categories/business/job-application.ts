@@ -1,4 +1,4 @@
-import { Template } from '../types';
+import { Template } from '../../types';
 
 export const jobApplication: Template = {
   id: 'job-application',

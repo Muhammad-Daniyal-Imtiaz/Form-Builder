@@ -1,4 +1,4 @@
-import { Template } from '../types';
+import { Template } from '../../types';
 
 export const parentTeacherMeeting: Template = {
   id: 'edu-pt-meeting',
