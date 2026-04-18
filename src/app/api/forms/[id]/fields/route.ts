@@ -46,13 +46,15 @@ export async function PUT(
 
         // Then, insert new fields with updated orders
         if (fields.length > 0) {
-            const newFields = fields.map((field, index) => ({
+            const newFields = fields.map((field: any, index: number) => ({
+                id: field.id, // Crucial: Keep the UUID so logic targetIds don't break
                 form_id: id,
                 label: field.label || 'Untitled Field',
                 type: field.type || 'text',
                 required: field.required || false,
                 options: field.options || null,
                 placeholder: field.placeholder || null,
+                logic_rules: field.logicRules || null, // Map the camelCase payload to snake_case DB column
                 order: index
             }))
 

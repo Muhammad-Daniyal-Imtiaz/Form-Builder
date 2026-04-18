@@ -21,6 +21,7 @@ interface CustomStyles {
   fontSizeBase: number
   fieldSpacing: number
   labelWeight: string
+  fontWeight: string
   buttonStyle: 'rounded' | 'pill' | 'square'
   inputVariant: 'outline' | 'filled' | 'underline'
   logoHeight: number
@@ -54,6 +55,7 @@ const DEFAULT_STYLES: CustomStyles = {
   fontSizeBase: 16,
   fieldSpacing: 32,
   labelWeight: 'bold',
+  fontWeight: 'normal',
   buttonStyle: 'rounded',
   inputVariant: 'outline',
   logoHeight: 48,
@@ -103,19 +105,94 @@ export default function PublicForm({
   const cs: CustomStyles = { ...DEFAULT_STYLES, ...rawStyles }
   const settings: FormSettings = { ...DEFAULT_SETTINGS, ...rawSettings }
 
+  // --- LOGIC ENGINE ---
+  const isFieldTargetOfShowRule = (targetId: string) => {
+    return form.form_fields?.some((f: any) => {
+      const rules = f.logicRules || f.logic_rules;
+      return rules?.some((r: any) => r.action === 'show' && r.targetId === targetId);
+    });
+  };
+
+  const evaluateCondition = (ruleValue: string, actualValue: any, condition: string) => {
+    if (actualValue === undefined || actualValue === null) actualValue = '';
+    const rVal = String(ruleValue).toLowerCase().trim();
+    
+    if (Array.isArray(actualValue)) {
+      const sVals = actualValue.map((v: string) => String(v).toLowerCase().trim());
+      if (condition === 'equals') return sVals.includes(rVal);
+      if (condition === 'not_equals') return !sVals.includes(rVal);
+      if (condition === 'contains') return sVals.some(v => v.includes(rVal));
+    } else {
+      const sVal = String(actualValue).toLowerCase().trim();
+      if (condition === 'equals') return sVal === rVal;
+      if (condition === 'not_equals') return sVal !== rVal;
+      if (condition === 'contains') return sVal.includes(rVal);
+    }
+    return false;
+  };
+
+  const isFieldVisible = (fieldId: string) => {
+    let visible = true;
+    
+    if (isFieldTargetOfShowRule(fieldId)) {
+      visible = false;
+    }
+
+    form.form_fields?.forEach((sourceField: any) => {
+        const sourceVal = data[sourceField.id || sourceField.label];
+        if (sourceVal !== undefined && sourceVal !== '') {
+          const rules = sourceField.logicRules || sourceField.logic_rules;
+          rules?.forEach((rule: any) => {
+              if (rule.targetId === fieldId) {
+                  const isMet = evaluateCondition(rule.value, sourceVal, rule.condition);
+                  if (isMet) {
+                      if (rule.action === 'show') visible = true;
+                      if (rule.action === 'hide') visible = false;
+                  }
+              }
+          });
+        }
+    });
+
+    return visible;
+  };
+
+  const executeJumpLogic = (fieldId: string, value: any) => {
+    const sourceField = form.form_fields?.find((f: any) => (f.id || f.label) === fieldId);
+    if (!sourceField || !sourceField.logicRules) return;
+
+    for (const rule of sourceField.logicRules) {
+        if (rule.action === 'jump_to' && evaluateCondition(rule.value, value, rule.condition)) {
+            setTimeout(() => {
+                const el = document.getElementById(`field-${rule.targetId}`);
+                if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    el.style.transition = 'box-shadow 0.4s ease-in-out';
+                    el.style.boxShadow = `0 0 0 4px ${cs.accentColor}40`;
+                    setTimeout(() => { el.style.boxShadow = 'none'; }, 2000);
+                }
+            }, 150);
+            return;
+        }
+    }
+  };
+  // ----------------------
+
   const fontUrl = cs.fontFamily !== 'Inter' && cs.fontFamily !== 'Georgia'
     ? `https://fonts.googleapis.com/css2?family=${cs.fontFamily.replace(' ', '+')}:wght@400;500;600;700;800&display=swap`
     : null
 
   const handleInputChange = (fieldId: string, value: any) => {
     setData(prev => ({ ...prev, [fieldId]: value }))
+    executeJumpLogic(fieldId, value)
   }
 
   const handleCheckboxChange = (fieldId: string, option: string, checked: boolean) => {
     setData(prev => {
       const currentVal = prev[fieldId] || []
-      if (checked) return { ...prev, [fieldId]: [...currentVal, option] }
-      else return { ...prev, [fieldId]: currentVal.filter((v: string) => v !== option) }
+      const newVal = checked ? [...currentVal, option] : currentVal.filter((v: string) => v !== option);
+      setTimeout(() => executeJumpLogic(fieldId, newVal), 0)
+      return { ...prev, [fieldId]: newVal }
     })
   }
 
@@ -153,16 +230,27 @@ export default function PublicForm({
     setLoading(true)
     setError('')
     try {
+      // Filter out hidden fields from submission
+      const activeData: Record<string, any> = {}
+      form.form_fields?.forEach((f: any) => {
+        const key = f.id || f.label
+        if (isFieldVisible(key) && data[key] !== undefined) {
+          activeData[key] = data[key]
+        }
+      })
+
       let uploadedFilesArray: any[] = []
       Object.keys(files).forEach(key => {
-        const fileData = files[key]
-        if (Array.isArray(fileData)) uploadedFilesArray = [...uploadedFilesArray, ...fileData]
-        else uploadedFilesArray.push(fileData)
+        if (isFieldVisible(key)) {
+          const fileData = files[key]
+          if (Array.isArray(fileData)) uploadedFilesArray = [...uploadedFilesArray, ...fileData]
+          else uploadedFilesArray.push(fileData)
+        }
       })
       const res = await fetch(`/api/forms/${form.id}/submissions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data, files: uploadedFilesArray }),
+        body: JSON.stringify({ data: activeData, files: uploadedFilesArray }),
       })
       const resData = await res.json()
       if (!res.ok) throw new Error(resData.error || 'Failed to submit form')
@@ -282,8 +370,10 @@ export default function PublicForm({
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: `${cs.fieldSpacing}px` }}>
         {form.form_fields?.map((field: any, index: number) => {
           const fieldKey = field.id || field.label
+          if (!isFieldVisible(fieldKey)) return null;
+
           return (
-            <div key={index} className="space-y-2">
+            <div key={index} id={`field-${fieldKey}`} className="space-y-2 rounded-xl transition-all duration-300">
               <label style={labelStyle}>
                 {field.label}
                 {field.required && <span style={{ color: cs.accentColor }} className="ml-1.5">*</span>}

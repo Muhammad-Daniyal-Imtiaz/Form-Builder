@@ -1,5 +1,13 @@
 export type FieldType = 'text' | 'email' | 'number' | 'textarea' | 'select' | 'multiselect' | 'radio' | 'checkbox' | 'file' | 'multifile';
 
+export interface FieldLogicRule {
+  id: string;
+  condition: 'equals' | 'not_equals' | 'contains';
+  value: string;
+  action: 'show' | 'hide' | 'jump_to';
+  targetId: string;
+}
+
 export interface FormField {
   id: string; // Crucial for dnd-kit. Generate via crypto.randomUUID() or a simple counter.
   label: string;
@@ -8,6 +16,7 @@ export interface FormField {
   options: string[] | null;
   placeholder: string | null;
   fileMode?: 'upload' | 'link';
+  logicRules?: FieldLogicRule[];
 }
 
 export interface CustomStyles {
@@ -28,6 +37,7 @@ export interface CustomStyles {
   fontSizeBase: number;
   fieldSpacing: number;
   labelWeight: 'normal' | 'semibold' | 'bold';
+  fontWeight: 'normal' | 'semibold' | 'bold';
   buttonStyle: 'rounded' | 'pill' | 'square';
   inputVariant: 'outline' | 'filled' | 'underline';
   logoHeight: number;
@@ -86,6 +96,7 @@ export const DEFAULT_STYLES: CustomStyles = {
   fontSizeBase: 16,
   fieldSpacing: 32,
   labelWeight: 'bold',
+  fontWeight: 'normal',
   buttonStyle: 'rounded',
   inputVariant: 'outline',
   logoHeight: 48,

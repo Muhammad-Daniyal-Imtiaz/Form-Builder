@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Settings, X, GripVertical, Plus, Trash2 } from 'lucide-react'
+import { Settings, X, GripVertical, Plus, Trash2, GitBranch } from 'lucide-react'
 import { useBuilder } from './BuilderContext'
 import { cn } from '@/utils/cn'
 
@@ -10,6 +10,32 @@ export function FieldSettingsPanel() {
   const { activeFieldId, setActiveFieldId, fields, updateField, addOption, updateOption, removeOption } = useBuilder()
 
   const activeField = fields.find(f => f.id === activeFieldId)
+
+  const addLogicRule = () => {
+    if (!activeField) return;
+    const newRule = {
+      id: crypto.randomUUID(),
+      condition: 'equals' as const,
+      value: '',
+      action: 'show' as const,
+      targetId: ''
+    };
+    updateField(activeField.id, { logicRules: [...(activeField.logicRules || []), newRule] });
+  };
+
+  const updateLogicRule = (ruleId: string, updates: any) => {
+    if (!activeField) return;
+    updateField(activeField.id, {
+      logicRules: activeField.logicRules?.map(r => r.id === ruleId ? { ...r, ...updates } : r)
+    });
+  };
+
+  const removeLogicRule = (ruleId: string) => {
+    if (!activeField) return;
+    updateField(activeField.id, {
+      logicRules: activeField.logicRules?.filter(r => r.id !== ruleId)
+    });
+  };
 
   return (
     <AnimatePresence>
@@ -111,6 +137,84 @@ export function FieldSettingsPanel() {
                   >
                     <Plus className="w-3.5 h-3.5" />
                     Add Option
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Logic & Branching Manager */}
+            {['text', 'email', 'number', 'select', 'radio', 'checkbox'].includes(activeField.type) && (
+              <div className="pt-4 border-t border-gray-100">
+                <div className="flex items-center gap-2 mb-3">
+                  <GitBranch className="w-4 h-4 text-indigo-500" />
+                  <label className="block text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">
+                    Logic & Branching
+                  </label>
+                </div>
+                
+                <div className="space-y-3">
+                  {activeField.logicRules?.map((rule) => (
+                    <div key={rule.id} className="p-3 bg-indigo-50/50 border border-indigo-100 rounded-xl space-y-2 relative group">
+                      <button
+                        onClick={() => removeLogicRule(rule.id)}
+                        className="absolute -top-2 -right-2 p-1 bg-white text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full shadow-sm border border-gray-200 opacity-0 group-hover:opacity-100 transition-all z-10"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+
+                      <div className="flex items-center gap-2 text-xs font-semibold text-gray-600">
+                        <span>If answer</span>
+                        <select
+                          value={rule.condition}
+                          onChange={(e) => updateLogicRule(rule.id, { condition: e.target.value })}
+                          className="bg-white border border-gray-200 rounded px-1 py-0.5 outline-none text-indigo-600"
+                        >
+                          <option value="equals">is exactly</option>
+                          <option value="not_equals">is not</option>
+                          <option value="contains">contains</option>
+                        </select>
+                      </div>
+
+                      <input
+                        type="text"
+                        value={rule.value}
+                        onChange={(e) => updateLogicRule(rule.id, { value: e.target.value })}
+                        placeholder="Expected value..."
+                        className="w-full px-2 py-1.5 bg-white border border-gray-200 rounded text-sm outline-none focus:border-indigo-400 transition-colors"
+                      />
+
+                      <div className="flex items-center gap-2 text-xs font-semibold text-gray-600 pt-1">
+                        <span>Then</span>
+                        <select
+                          value={rule.action}
+                          onChange={(e) => updateLogicRule(rule.id, { action: e.target.value })}
+                          className="bg-white border border-gray-200 rounded px-1 py-0.5 outline-none text-pink-600 font-bold"
+                        >
+                          <option value="show">Show</option>
+                          <option value="hide">Hide</option>
+                          <option value="jump_to">Jump To</option>
+                        </select>
+                      </div>
+
+                      <select
+                        value={rule.targetId}
+                        onChange={(e) => updateLogicRule(rule.id, { targetId: e.target.value })}
+                        className="w-full px-2 py-1.5 bg-white border border-gray-200 rounded text-sm outline-none focus:border-pink-400 transition-colors"
+                      >
+                        <option value="">Select target field...</option>
+                        {fields.filter(f => f.id !== activeField.id).map(f => (
+                          <option key={f.id} value={f.id}>{f.label} (Type: {f.type})</option>
+                        ))}
+                      </select>
+                    </div>
+                  ))}
+
+                  <button
+                    onClick={addLogicRule}
+                    className="w-full flex items-center justify-center gap-2 py-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 hover:text-indigo-700 rounded-lg text-xs font-bold transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Add Logic Rule
                   </button>
                 </div>
               </div>

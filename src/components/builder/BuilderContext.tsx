@@ -98,7 +98,8 @@ export function BuilderProvider({ children, formId }: { children: React.ReactNod
       // Ensure all fields have IDs
       const loadedFields = (data.form_fields || []).map((f: any) => ({
         ...f,
-        id: f.id || crypto.randomUUID()
+        id: f.id || crypto.randomUUID(),
+        logicRules: f.logic_rules || f.logicRules || []
       }))
       setFields(loadedFields)
     } catch (err: any) {
