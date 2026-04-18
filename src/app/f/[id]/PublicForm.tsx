@@ -251,6 +251,19 @@ export default function PublicForm({
   return (
     <div style={{ background: cs.bodyBg, fontFamily: `"${cs.fontFamily}", sans-serif`, padding: `${cs.containerPadding}px`, fontSize: `${cs.fontSizeBase}px` }} className="pb-16 border-t font-inherit">
       {fontUrl && <link rel="stylesheet" href={fontUrl} />}
+      <style>{`
+        ::placeholder {
+          color: ${cs.bodyText} !important;
+          opacity: 0.5 !important;
+        }
+        select option {
+          background-color: ${cs.pageBgColor.toLowerCase() === '#0a0a0a' ? '#171717' : '#ffffff'} !important;
+          color: ${cs.pageBgColor.toLowerCase() === '#0a0a0a' ? '#ffffff' : '#000000'} !important;
+        }
+        input[type="date"]::-webkit-calendar-picker-indicator {
+          filter: ${cs.pageBgColor.toLowerCase() === '#0a0a0a' ? 'invert(1)' : 'none'};
+        }
+      `}</style>
 
       {error && (
         <div className="mb-8 p-4 bg-red-50 border-l-4 border-red-500 rounded-lg text-[0.9em]">

@@ -57,8 +57,8 @@ function SortableFieldItem({ field }: { field: FormField }) {
       ref={setNodeRef}
       style={style}
       className={cn(
-        "relative rounded-2xl border-2 transition-all group bg-white",
-        isSelected ? "border-indigo-500 shadow-lg ring-4 ring-indigo-50" : "border-transparent hover:border-gray-200",
+        "relative rounded-2xl border-2 transition-all group bg-transparent",
+        isSelected ? "border-indigo-500 shadow-lg ring-4 ring-indigo-500/20" : "border-transparent hover:border-gray-500/20",
         isDragging && "opacity-50 scale-105 shadow-2xl"
       )}
       onClick={(e) => {
@@ -184,6 +184,7 @@ export function Canvas() {
   }
 
   const bgStyle: React.CSSProperties = {
+    backgroundColor: customStyles.pageBgColor,
     ...(customStyles.pageBgImage ? {
       backgroundImage: `url(${customStyles.pageBgImage})`,
       backgroundSize: 'cover',
@@ -205,6 +206,12 @@ export function Canvas() {
   return (
     <div className="flex-1 overflow-y-auto custom-scrollbar relative" onClick={() => setActiveFieldId(null)} style={bgStyle}>
       {fontUrl && <style dangerouslySetInnerHTML={{ __html: `@import url('${fontUrl}');` }} />}
+      <style>{`
+        ::placeholder {
+          color: ${customStyles.bodyText} !important;
+          opacity: 0.5 !important;
+        }
+      `}</style>
       <div className="min-h-full py-12 px-4 sm:px-8" style={bgOverlayStyle}>
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
