@@ -30,6 +30,7 @@ export async function GET(request: Request) {
     
     // 🔥 Capturing Google Provider Tokens for Background Sheets Sync
     if (session.provider_token || session.provider_refresh_token) {
+      const expiresAt = new Date(Date.now() + 3600 * 1000).toISOString()
       await adminClient
         .from('user_integrations')
         .upsert({
@@ -38,6 +39,7 @@ export async function GET(request: Request) {
           access_token: session.provider_token,
           refresh_token: session.provider_refresh_token,
           email: user.email,
+          expires_at: expiresAt,
           updated_at: new Date().toISOString()
         })
     }
