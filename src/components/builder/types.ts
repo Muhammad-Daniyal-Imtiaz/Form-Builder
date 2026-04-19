@@ -63,6 +63,14 @@ export interface FormSettings {
   thankYouHeadline: string;
   thankYouMessage: string;
   redirectUrl: string;
+  integrations?: {
+    googleSheets?: {
+      connected: boolean;
+      spreadsheetId?: string;
+      spreadsheetUrl?: string;
+      sheetName?: string;
+    };
+  };
 }
 
 export const DEFAULT_SETTINGS: FormSettings = {

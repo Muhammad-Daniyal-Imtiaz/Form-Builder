@@ -6,7 +6,7 @@ import {
   Type, Mail, Hash, AlignLeft, List, CheckSquare, 
   FileUp, Palette, Plus, Settings, Check, 
   MousePointer2, MessageSquare, ExternalLink, RefreshCcw,
-  Share2, Globe, Code, Copy
+  Share2, Globe, Code, Copy, Search, Plug, Database, FileSpreadsheet
 } from 'lucide-react'
 import { useBuilder } from './BuilderContext'
 import { FieldType, PRESET_THEMES, AVAILABLE_FONTS } from './types'
@@ -624,6 +624,115 @@ export function Sidebar() {
                 <p className="text-[10px] text-gray-400 mt-1 px-1">
                   If set, users will be taken to this URL immediately after submission instead of seeing the Thank You screen.
                 </p>
+              </div>
+            </div>
+
+            {/* INTEGRATIONS */}
+            <div>
+              <h3 className="text-[11px] font-extrabold text-gray-400 uppercase tracking-widest mb-3 px-1">Integrations</h3>
+              <div className="p-3 bg-gray-50 border border-gray-100 rounded-xl space-y-4">
+                <div className="flex items-center gap-2 text-green-600 mb-1">
+                  <Database className="w-4 h-4" />
+                  <span className="text-xs font-bold uppercase tracking-wider">Connected Apps</span>
+                </div>
+                
+                <div className="relative">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search apps (e.g., Google Sheets)"
+                    className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none"
+                  />
+                </div>
+
+                <div className="pt-2">
+                  <div className={cn(
+                    "border rounded-xl bg-white overflow-hidden transition-all duration-300",
+                    formSettings.integrations?.googleSheets?.connected ? "border-green-500 shadow-[0_0_0_1px_rgba(34,197,94,0.3)] shadow-green-100" : "border-gray-200 hover:border-green-300"
+                  )}>
+                    <div className="p-3 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded shrink-0 flex items-center justify-center bg-[#0F9D58]/10 text-[#0F9D58]">
+                          <FileSpreadsheet className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="text-xs font-bold text-gray-900">Google Sheets</div>
+                          <div className="text-[10px] text-gray-500">
+                            {formSettings.integrations?.googleSheets?.connected ? 'Connected to spreadsheet' : 'Export responses automatically'}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {!formSettings.integrations?.googleSheets?.connected ? (
+                        <button
+                          onClick={() => {
+                            // Simulate OAuth connect
+                            const simulatedConnect = {
+                              googleSheets: {
+                                connected: true,
+                                spreadsheetId: 'simulated_sheet_id_123',
+                                spreadsheetUrl: 'https://docs.google.com/spreadsheets/d/simulated',
+                                sheetName: 'Sheet1'
+                              }
+                            }
+                            updateFormSettings({ 
+                              integrations: { ...formSettings.integrations, ...simulatedConnect } 
+                            })
+                            alert("Simulated: Successfully authenticated with Google!");
+                          }}
+                          className="px-3 py-1.5 bg-white border border-gray-200 text-gray-700 text-[10px] font-bold rounded-lg hover:border-green-500 hover:text-green-600 transition-colors shadow-sm whitespace-nowrap"
+                        >
+                          Connect
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            updateFormSettings({ 
+                              integrations: { ...formSettings.integrations, googleSheets: undefined } 
+                            })
+                          }}
+                          className="px-2 py-1 text-red-500 text-[10px] font-bold hover:bg-red-50 rounded transition-colors"
+                        >
+                          Disconnect
+                        </button>
+                      )}
+                    </div>
+                    
+                    {/* Active Configuration */}
+                    {formSettings.integrations?.googleSheets?.connected && (
+                      <div className="bg-green-50/50 p-3 border-t border-green-100 space-y-3">
+                        <div className="flex items-center gap-2">
+                          <Check className="w-3 h-3 text-green-600" />
+                          <span className="text-[10px] font-medium text-green-800">Account verified</span>
+                        </div>
+                        
+                        <div>
+                          <label className="block text-[10px] font-bold text-gray-700 mb-1">Spreadsheet Actions</label>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => {
+                                alert("Sync simulated! All new submissions will now instantly save to this Google Sheet.");
+                              }}
+                              className="flex-1 py-1.5 px-2 bg-green-600 text-white text-[10px] font-bold rounded-md hover:bg-green-700 transition-colors text-center"
+                            >
+                              Sync Results Now
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (formSettings.integrations?.googleSheets?.spreadsheetUrl) {
+                                  window.open(formSettings.integrations.googleSheets.spreadsheetUrl, '_blank')
+                                }
+                              }}
+                              className="flex-1 py-1.5 px-2 bg-white border border-gray-200 text-gray-700 text-[10px] font-bold rounded-md hover:border-gray-300 transition-colors text-center"
+                            >
+                              Open Sheet
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
 
