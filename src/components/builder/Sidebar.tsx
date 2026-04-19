@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { 
   Type, Mail, Hash, AlignLeft, List, CheckSquare, 
@@ -30,6 +30,49 @@ export function Sidebar() {
     updateStyles, applyThemePreset, 
     formSettings, updateFormSettings 
   } = useBuilder()
+
+  const [sheetStatus, setSheetStatus] = useState<{
+    isConnected: boolean;
+    googleEmail?: string;
+    sheetId?: string;
+    sheetName?: string;
+    isEnabled: boolean;
+  } | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (sidebarTab === 'settings' && form?.id) {
+      fetchStatus()
+    }
+  }, [sidebarTab, form?.id])
+
+  const fetchStatus = async () => {
+    try {
+      const resp = await fetch(`/api/forms/${form.id}/integrations/google-sheets`)
+      const data = await resp.json()
+      setSheetStatus(data)
+    } catch (err) {
+      console.error('Failed to fetch sheet status:', err)
+    }
+  }
+
+  const handleAction = async (action: string, payload: any = {}) => {
+    setLoading(true)
+    try {
+      const resp = await fetch(`/api/forms/${form.id}/integrations/google-sheets`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, ...payload })
+      })
+      if (resp.ok) {
+        await fetchStatus()
+      }
+    } catch (err) {
+      console.error(`Action ${action} failed:`, err)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <aside className="w-80 bg-white/80 backdrop-blur-2xl border-r border-gray-200/50 h-[calc(100vh-56px)] sticky top-14 flex flex-col shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-10 shrink-0 overflow-hidden">
@@ -648,7 +691,7 @@ export function Sidebar() {
                 <div className="pt-2">
                   <div className={cn(
                     "border rounded-xl bg-white overflow-hidden transition-all duration-300",
-                    formSettings.integrations?.googleSheets?.connected ? "border-green-500 shadow-[0_0_0_1px_rgba(34,197,94,0.3)] shadow-green-100" : "border-gray-200 hover:border-green-300"
+                    sheetStatus?.isEnabled ? "border-green-500 shadow-[0_0_0_1px_rgba(34,197,94,0.3)] shadow-green-100" : "border-gray-200 hover:border-green-300"
                   )}>
                     <div className="p-3 flex items-center justify-between">
                       <div className="flex items-center gap-3">
@@ -658,77 +701,94 @@ export function Sidebar() {
                         <div>
                           <div className="text-xs font-bold text-gray-900">Google Sheets</div>
                           <div className="text-[10px] text-gray-500">
-                            {formSettings.integrations?.googleSheets?.connected ? 'Connected to spreadsheet' : 'Export responses automatically'}
+                            {sheetStatus?.isConnected ? (sheetStatus.googleEmail || 'Connected') : 'Export responses automatically'}
                           </div>
                         </div>
                       </div>
                       
-                      {!formSettings.integrations?.googleSheets?.connected ? (
+                      {!sheetStatus?.isConnected ? (
                         <button
                           onClick={() => {
-                            // Simulate OAuth connect
-                            const simulatedConnect = {
-                              googleSheets: {
-                                connected: true,
-                                spreadsheetId: 'simulated_sheet_id_123',
-                                spreadsheetUrl: 'https://docs.google.com/spreadsheets/d/simulated',
-                                sheetName: 'Sheet1'
-                              }
-                            }
-                            updateFormSettings({ 
-                              integrations: { ...formSettings.integrations, ...simulatedConnect } 
-                            })
-                            alert("Simulated: Successfully authenticated with Google!");
+                            window.location.href = `/api/auth/google?scope=sheets&redirectTo=${encodeURIComponent(window.location.pathname)}`
                           }}
                           className="px-3 py-1.5 bg-white border border-gray-200 text-gray-700 text-[10px] font-bold rounded-lg hover:border-green-500 hover:text-green-600 transition-colors shadow-sm whitespace-nowrap"
                         >
                           Connect
                         </button>
                       ) : (
-                        <button
-                          onClick={() => {
-                            updateFormSettings({ 
-                              integrations: { ...formSettings.integrations, googleSheets: undefined } 
-                            })
-                          }}
-                          className="px-2 py-1 text-red-500 text-[10px] font-bold hover:bg-red-50 rounded transition-colors"
-                        >
-                          Disconnect
-                        </button>
+                        <div className="flex items-center gap-2">
+                          {sheetStatus.sheetId && (
+                            <button
+                              onClick={() => handleAction('toggle', { enabled: !sheetStatus.isEnabled })}
+                              disabled={loading}
+                              className={cn(
+                                "relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none",
+                                sheetStatus.isEnabled ? "bg-green-600" : "bg-gray-200"
+                              )}
+                            >
+                              <span
+                                className={cn(
+                                  "inline-block h-3 w-3 transform rounded-full bg-white transition-transform",
+                                  sheetStatus.isEnabled ? "translate-x-5" : "translate-x-1"
+                                )}
+                              />
+                            </button>
+                          )}
+                        </div>
                       )}
                     </div>
                     
                     {/* Active Configuration */}
-                    {formSettings.integrations?.googleSheets?.connected && (
+                    {sheetStatus?.isConnected && (
                       <div className="bg-green-50/50 p-3 border-t border-green-100 space-y-3">
-                        <div className="flex items-center gap-2">
-                          <Check className="w-3 h-3 text-green-600" />
-                          <span className="text-[10px] font-medium text-green-800">Account verified</span>
-                        </div>
-                        
-                        <div>
-                          <label className="block text-[10px] font-bold text-gray-700 mb-1">Spreadsheet Actions</label>
-                          <div className="flex items-center gap-2">
+                        {!sheetStatus.sheetId ? (
+                          <div>
+                            <p className="text-[10px] text-gray-600 mb-2">Connect this form to a spreadsheet to start syncing results.</p>
                             <button
-                              onClick={() => {
-                                alert("Sync simulated! All new submissions will now instantly save to this Google Sheet.");
-                              }}
-                              className="flex-1 py-1.5 px-2 bg-green-600 text-white text-[10px] font-bold rounded-md hover:bg-green-700 transition-colors text-center"
+                              onClick={() => handleAction('create')}
+                              disabled={loading}
+                              className="w-full py-2 bg-green-600 text-white text-[10px] font-bold rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
                             >
-                              Sync Results Now
-                            </button>
-                            <button
-                              onClick={() => {
-                                if (formSettings.integrations?.googleSheets?.spreadsheetUrl) {
-                                  window.open(formSettings.integrations.googleSheets.spreadsheetUrl, '_blank')
-                                }
-                              }}
-                              className="flex-1 py-1.5 px-2 bg-white border border-gray-200 text-gray-700 text-[10px] font-bold rounded-md hover:border-gray-300 transition-colors text-center"
-                            >
-                              Open Sheet
+                              {loading ? 'Creating...' : 'Create New Spreadsheet'}
                             </button>
                           </div>
-                        </div>
+                        ) : (
+                          <>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2 overflow-hidden">
+                                <Check className="w-3 h-3 text-green-600 shrink-0" />
+                                <span className="text-[10px] font-medium text-green-800 truncate">
+                                  Linked to "{sheetStatus.sheetName || 'Responses'}"
+                                </span>
+                              </div>
+                              <button
+                                onClick={() => handleAction('disconnect')}
+                                className="text-[9px] text-red-500 font-bold hover:underline"
+                              >
+                                Unlink
+                              </button>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-2">
+                              <button
+                                onClick={() => {
+                                  window.open(`https://docs.google.com/spreadsheets/d/${sheetStatus.sheetId}`, '_blank')
+                                }}
+                                className="flex items-center justify-center gap-1 py-1.5 px-2 bg-white border border-gray-200 text-gray-700 text-[10px] font-bold rounded-md hover:border-gray-300 transition-colors"
+                              >
+                                <ExternalLink className="w-3 h-3" />
+                                Open Sheet
+                              </button>
+                              <button
+                                onClick={fetchStatus}
+                                className="flex items-center justify-center gap-1 py-1.5 px-2 bg-white border border-gray-200 text-gray-700 text-[10px] font-bold rounded-md hover:border-gray-300 transition-colors"
+                              >
+                                <RefreshCcw className="w-3 h-3" />
+                                Refresh
+                              </button>
+                            </div>
+                          </>
+                        )}
                       </div>
                     )}
                   </div>

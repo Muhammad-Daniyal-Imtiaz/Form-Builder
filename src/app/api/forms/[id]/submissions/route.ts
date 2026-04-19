@@ -108,6 +108,39 @@ export async function POST(
       }
     }
 
+    // 🚀 GOOGLE SHEETS SYNC
+    const { data: formConfig, error: configError } = await adminClient
+      .from('forms')
+      .select('user_id, google_sheet_id, google_sheet_enabled, google_sheet_name')
+      .eq('id', id)
+      .single();
+
+    if (!configError && formConfig?.google_sheet_enabled && formConfig?.google_sheet_id) {
+      try {
+        const { getGoogleAccessToken, appendToGoogleSheet } = await import('@/lib/google-sheets');
+        const accessToken = await getGoogleAccessToken(formConfig.user_id);
+        
+        if (accessToken) {
+          // Prepare values for Google Sheets (Map JSON data to array)
+          // We'll just push the raw object values for now, or we could fetch field labels
+          const rowValues = [
+            new Date().toLocaleString(), // Timestamp
+            ...Object.values(data as object)
+          ];
+          
+          await appendToGoogleSheet(
+            accessToken, 
+            formConfig.google_sheet_id, 
+            formConfig.google_sheet_name || 'Sheet1', 
+            [rowValues]
+          );
+        }
+      } catch (sheetErr) {
+        console.error('Failed to sync to Google Sheets:', sheetErr);
+        // Non-critical error, don't fail the whole submission
+      }
+    }
+
     return NextResponse.json({ success: true, id: submission.id }, { status: 201 })
   } catch (error) {
     console.error('POST submission error:', error)

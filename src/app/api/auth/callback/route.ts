@@ -27,6 +27,20 @@ export async function GET(request: Request) {
     }
 
     const user = session.user
+    
+    // 🔥 Capturing Google Provider Tokens for Background Sheets Sync
+    if (session.provider_token || session.provider_refresh_token) {
+      await adminClient
+        .from('user_integrations')
+        .upsert({
+          user_id: user.id,
+          provider: 'google',
+          access_token: session.provider_token,
+          refresh_token: session.provider_refresh_token,
+          email: user.email,
+          updated_at: new Date().toISOString()
+        })
+    }
     console.log('User authenticated:', user.email)
 
     // Check if user exists in our `users` table

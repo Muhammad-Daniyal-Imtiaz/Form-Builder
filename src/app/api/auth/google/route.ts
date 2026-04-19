@@ -6,13 +6,23 @@ export async function GET(request: Request) {
     const supabase = await createClient()
     const { searchParams } = new URL(request.url)
     const redirectTo = searchParams.get('redirectTo') || '/dashboard'
+    const requestedScope = searchParams.get('scope')
     
     const baseUrl = new URL(request.url).origin
+
+    // Default scopes for login
+    let scopes = 'https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid'
+    
+    // Add spreadsheets scope ONLY if explicitly requested (e.g., from the Integration settings)
+    if (requestedScope === 'sheets') {
+      scopes += ' https://www.googleapis.com/auth/spreadsheets'
+    }
 
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
         redirectTo: `${baseUrl}/api/auth/callback?redirectTo=${encodeURIComponent(redirectTo)}`,
+        scopes: scopes,
         queryParams: {
           access_type: 'offline',
           prompt: 'consent',
