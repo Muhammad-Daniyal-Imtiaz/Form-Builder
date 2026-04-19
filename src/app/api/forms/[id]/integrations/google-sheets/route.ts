@@ -92,6 +92,43 @@ export async function POST(
       return NextResponse.json({ success: true });
     }
 
+    if (action === 'sync-existing') {
+      const accessToken = await getGoogleAccessToken(user.id);
+      if (!accessToken) return NextResponse.json({ error: 'Google account not connected' }, { status: 400 });
+
+      // 1. Get Form Details (for sheet ID and fields)
+      const { data: form } = await supabase
+        .from('forms')
+        .select('google_sheet_id, google_sheet_name')
+        .eq('id', id)
+        .single();
+
+      if (!form?.google_sheet_id) return NextResponse.json({ error: 'No sheet connected' }, { status: 400 });
+
+      // 2. Get Fields and Submissions
+      const { data: fields } = await supabase.from('form_fields').select('id, label').eq('form_id', id).order('order');
+      const { data: submissions } = await supabase.from('submissions').select('*').eq('form_id', id).order('submitted_at');
+
+      if (!submissions || submissions.length === 0) return NextResponse.json({ success: true, count: 0 });
+
+      // 3. Map to Rows
+      const rows = submissions.map(sub => {
+        const row = [new Date(sub.submitted_at).toLocaleString()];
+        fields?.forEach(f => {
+          let val = sub.data[f.id] || sub.data[f.label] || '';
+          if (Array.isArray(val)) val = val.join(', ');
+          row.push(String(val));
+        });
+        return row;
+      });
+
+      // 4. Batch Push
+      const { appendToGoogleSheet } = await import('@/lib/google-sheets');
+      const success = await appendToGoogleSheet(accessToken, form.google_sheet_id, form.google_sheet_name || 'Sheet1', rows);
+
+      return NextResponse.json({ success, count: rows.length });
+    }
+
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
   } catch (err) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

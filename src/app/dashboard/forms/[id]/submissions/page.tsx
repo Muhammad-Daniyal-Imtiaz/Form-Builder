@@ -2,6 +2,7 @@
 
 import { useState, useEffect, use } from 'react'
 import Link from 'next/link'
+import { FileSpreadsheet, Download, ExternalLink, ArrowLeft, Loader2, Check } from 'lucide-react'
 
 export default function SubmissionsPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params)
@@ -9,6 +10,8 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
   const [submissions, setSubmissions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [sheetStatus, setSheetStatus] = useState<any>(null)
+  const [syncing, setSyncing] = useState(false)
 
   useEffect(() => {
     fetchData()
@@ -29,10 +32,42 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
 
       setForm(formData)
       setSubmissions(subsData)
+      
+      // Fetch integration status
+      const intRes = await fetch(`/api/forms/${resolvedParams.id}/integrations/google-sheets`)
+      if (intRes.ok) {
+        const intData = await intRes.json()
+        setSheetStatus(intData)
+      }
     } catch (err: any) {
       setError(err.message)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleGoogleSync = async () => {
+    if (!sheetStatus?.sheetId) return
+    if (!confirm(`This will push all ${submissions.length} submissions to your Google Sheet. Continue?`)) return
+
+    setSyncing(true)
+    try {
+      const resp = await fetch(`/api/forms/${resolvedParams.id}/integrations/google-sheets`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'sync-existing' })
+      })
+      
+      if (resp.ok) {
+        alert('Successfully synced all submissions to Google Sheets!')
+      } else {
+        alert('Failed to sync. Please check your Google connection.')
+      }
+    } catch (err) {
+      console.error('Sync failed:', err)
+      alert('An error occurred during sync.')
+    } finally {
+      setSyncing(false)
     }
   }
 
@@ -111,9 +146,24 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
               disabled={submissions.length === 0}
               className="bg-white text-indigo-600 border border-indigo-200 px-4 py-2 rounded-lg font-bold shadow-sm hover:bg-indigo-50 transition-all text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+              <Download className="w-4 h-4" />
               Download CSV
             </button>
+
+            {sheetStatus?.isConnected && sheetStatus?.sheetId && (
+              <button
+                onClick={handleGoogleSync}
+                disabled={syncing || submissions.length === 0}
+                className="bg-green-600 text-white px-4 py-2 rounded-lg font-bold shadow-sm hover:bg-green-700 transition-all text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {syncing ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <FileSpreadsheet className="w-4 h-4" />
+                )}
+                {syncing ? 'Syncing...' : 'Sync to Google Sheets'}
+              </button>
+            )}
             <Link
               href={`/dashboard/forms/${resolvedParams.id}/edit`}
               className="bg-white text-gray-700 border border-gray-300 px-4 py-2 rounded-lg font-medium shadow-sm hover:bg-gray-50 transition-colors text-sm"
