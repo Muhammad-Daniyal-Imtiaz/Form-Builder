@@ -109,7 +109,8 @@ export async function POST(
     }
 
     // 🚀 GOOGLE SHEETS SYNC
-    const { data: formConfig, error: configError } = await adminClient
+    const admin = await createAdminClient();
+    const { data: formConfig, error: configError } = await admin
       .from('forms')
       .select('user_id, google_sheet_id, google_sheet_enabled, google_sheet_name')
       .eq('id', id)
@@ -117,27 +118,43 @@ export async function POST(
 
     if (!configError && formConfig?.google_sheet_enabled && formConfig?.google_sheet_id) {
       try {
-        const { getGoogleAccessToken, appendToGoogleSheet } = await import('@/lib/google-sheets');
+        const { getGoogleAccessToken, appendToGoogleSheet, getSheetValues } = await import('@/lib/google-sheets');
         const accessToken = await getGoogleAccessToken(formConfig.user_id);
         
         if (accessToken) {
-          // Prepare values for Google Sheets (Map JSON data to array)
-          // We'll just push the raw object values for now, or we could fetch field labels
-          const rowValues = [
-            new Date().toLocaleString(), // Timestamp
-            ...Object.values(data as object)
-          ];
+          // Fetch fields for headers and data mapping
+          const { data: fields } = await admin.from('form_fields').select('id, label').eq('form_id', id).order('order');
           
-          await appendToGoogleSheet(
+          const existingValues = await getSheetValues(accessToken, formConfig.google_sheet_id, `${formConfig.google_sheet_name || 'Sheet1'}!A1:Z1`);
+          const payloadRows = [];
+          
+          if (existingValues.length === 0) {
+            const fieldLabels = fields?.map(f => f.label) || [];
+            payloadRows.push(['Submission Date', ...fieldLabels]);
+          }
+
+          // Prepare row values
+          const rowValues = [new Date().toLocaleString()];
+          fields?.forEach(f => {
+            let val = data[f.id] || data[f.label] || '';
+            if (Array.isArray(val)) val = val.join(', ');
+            rowValues.push(String(val));
+          });
+          payloadRows.push(rowValues);
+          
+          const success = await appendToGoogleSheet(
             accessToken, 
             formConfig.google_sheet_id, 
             formConfig.google_sheet_name || 'Sheet1', 
-            [rowValues]
+            payloadRows
           );
+
+          if (success) {
+            await admin.from('submissions').update({ google_synced: true }).eq('id', submission.id);
+          }
         }
       } catch (sheetErr) {
         console.error('Failed to sync to Google Sheets:', sheetErr);
-        // Non-critical error, don't fail the whole submission
       }
     }
 

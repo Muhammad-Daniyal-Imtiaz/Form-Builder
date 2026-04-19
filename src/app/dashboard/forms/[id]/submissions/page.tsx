@@ -58,10 +58,16 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
         body: JSON.stringify({ action: 'sync-existing' })
       })
       
+      const data = await resp.json()
+      
       if (resp.ok) {
-        alert('Successfully synced all submissions to Google Sheets!')
+        if (data.count === 0) {
+          alert('Sheets already up-to-date. No new data to push!')
+        } else {
+          alert(data.message || `Successfully synced ${data.count} submissions!`)
+        }
       } else {
-        alert('Failed to sync. Please check your Google connection.')
+        alert(data.error || 'Failed to sync. Please check your Google connection.')
       }
     } catch (err) {
       console.error('Sync failed:', err)

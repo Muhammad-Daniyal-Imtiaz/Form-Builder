@@ -96,7 +96,7 @@ export async function POST(
       const accessToken = await getGoogleAccessToken(user.id);
       if (!accessToken) return NextResponse.json({ error: 'Google account not connected' }, { status: 400 });
 
-      // 1. Get Form Details (for sheet ID and fields)
+      // 1. Get Form Details
       const { data: form } = await supabase
         .from('forms')
         .select('google_sheet_id, google_sheet_name')
@@ -105,28 +105,55 @@ export async function POST(
 
       if (!form?.google_sheet_id) return NextResponse.json({ error: 'No sheet connected' }, { status: 400 });
 
-      // 2. Get Fields and Submissions
+      // 2. Get Fields and ONLY Unsynced Submissions
       const { data: fields } = await supabase.from('form_fields').select('id, label').eq('form_id', id).order('order');
-      const { data: submissions } = await supabase.from('submissions').select('*').eq('form_id', id).order('submitted_at');
+      const { data: submissions } = await supabase
+        .from('submissions')
+        .select('*')
+        .eq('form_id', id)
+        .eq('google_synced', false)
+        .order('submitted_at');
 
-      if (!submissions || submissions.length === 0) return NextResponse.json({ success: true, count: 0 });
+      if (!submissions || submissions.length === 0) return NextResponse.json({ success: true, count: 0, message: 'All caught up!' });
 
-      // 3. Map to Rows
-      const rows = submissions.map(sub => {
+      // 3. Prepare Header Info
+      const { getSheetValues, appendToGoogleSheet } = await import('@/lib/google-sheets');
+      const existingValues = await getSheetValues(accessToken, form.google_sheet_id, `${form.google_sheet_name || 'Sheet1'}!A1:Z1`);
+      
+      const payloadRows = [];
+      const fieldLabels = fields?.map(f => f.label) || [];
+      
+      // If sheet is empty, add the header row
+      if (existingValues.length === 0) {
+        payloadRows.push(['Submission Date', ...fieldLabels]);
+      }
+
+      // 4. Map to Rows
+      submissions.forEach(sub => {
         const row = [new Date(sub.submitted_at).toLocaleString()];
         fields?.forEach(f => {
           let val = sub.data[f.id] || sub.data[f.label] || '';
           if (Array.isArray(val)) val = val.join(', ');
           row.push(String(val));
         });
-        return row;
+        payloadRows.push(row);
       });
 
-      // 4. Batch Push
-      const { appendToGoogleSheet } = await import('@/lib/google-sheets');
-      const success = await appendToGoogleSheet(accessToken, form.google_sheet_id, form.google_sheet_name || 'Sheet1', rows);
+      // 5. Push to Google
+      const success = await appendToGoogleSheet(accessToken, form.google_sheet_id, form.google_sheet_name || 'Sheet1', payloadRows);
 
-      return NextResponse.json({ success, count: rows.length });
+      if (success) {
+        // Mark as synced in DB using Admin client
+        const admin = await createAdminClient();
+        const submissionIds = submissions.map(s => s.id);
+        await admin.from('submissions').update({ google_synced: true }).in('id', submissionIds);
+      }
+
+      return NextResponse.json({ 
+        success, 
+        count: submissions.length,
+        message: success ? `Successfully synced ${submissions.length} new responses.` : 'Failed to sync to Google Sheets.'
+      });
     }
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });

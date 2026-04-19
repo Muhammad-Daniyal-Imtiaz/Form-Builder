@@ -133,3 +133,17 @@ export async function createGoogleSheet(accessToken: string, title: string) {
     return null;
   }
 }
+
+export async function getSheetValues(accessToken: string, spreadsheetId: string, range: string) {
+  try {
+    const url = `${GOOGLE_SHEETS_API_BASE}/${spreadsheetId}/values/${range}`;
+    const response = await fetch(url, {
+      headers: { 'Authorization': `Bearer ${accessToken}` }
+    });
+    const data = await response.json();
+    return data.values || [];
+  } catch (err) {
+    console.error('Error fetching sheet values:', err);
+    return [];
+  }
+}
