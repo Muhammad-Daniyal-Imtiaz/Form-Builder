@@ -245,6 +245,62 @@ export function Sidebar() {
               </div>
             </div>
 
+            {/* Layout Structure */}
+            <div>
+              <h3 className="text-[11px] font-extrabold text-gray-400 uppercase tracking-widest mb-3 px-1">Layout & Structure</h3>
+              <div className="grid grid-cols-1 gap-3 p-3 bg-gray-50 border border-gray-100 rounded-xl">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-2">Form Layout</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { id: 'centered', label: 'Classic' },
+                      { id: 'split', label: 'Split' },
+                      { id: 'sidebar', label: 'Sidebar' }
+                    ].map(layout => (
+                      <button
+                        key={layout.id}
+                        onClick={() => updateStyles({ layout: layout.id as any })}
+                        className={cn(
+                          "px-2 py-2 text-[10px] font-bold rounded-lg border transition-all text-center",
+                          customStyles.layout === layout.id 
+                            ? "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-100" 
+                            : "bg-white border-gray-200 text-gray-500 hover:border-indigo-300"
+                        )}
+                      >
+                        {layout.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {['split', 'sidebar'].includes(customStyles.layout) && (
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-2">Branding Side</label>
+                    <div className="flex bg-white p-1 rounded-lg border border-gray-200">
+                      <button
+                        onClick={() => updateStyles({ layoutSide: 'left' })}
+                        className={cn(
+                          "flex-1 py-1.5 text-[10px] font-bold rounded-md transition-all",
+                          customStyles.layoutSide === 'left' ? "bg-gray-100 text-indigo-600" : "text-gray-400"
+                        )}
+                      >
+                        Left
+                      </button>
+                      <button
+                        onClick={() => updateStyles({ layoutSide: 'right' })}
+                        className={cn(
+                          "flex-1 py-1.5 text-[10px] font-bold rounded-md transition-all",
+                          customStyles.layoutSide === 'right' ? "bg-gray-100 text-indigo-600" : "text-gray-400"
+                        )}
+                      >
+                        Right
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
             <div>
               <h3 className="text-[11px] font-extrabold text-gray-400 uppercase tracking-widest mb-3 px-1">Brand Assets</h3>
               <div className="space-y-4">
@@ -252,7 +308,7 @@ export function Sidebar() {
                 {/* Logo Section */}
                 <div className="p-3 bg-gray-50 border border-gray-100 rounded-xl space-y-3">
                   <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">Logo URL</label>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Main Logo URL</label>
                     <input
                       type="url"
                       value={form?.logo_url || ''}
@@ -304,6 +360,32 @@ export function Sidebar() {
                         </select>
                       </div>
                     </>
+                  )}
+                </div>
+
+                {/* Secondary Image Section */}
+                <div className="p-3 bg-gray-50 border border-gray-100 rounded-xl space-y-3">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Secondary Asset URL</label>
+                    <input
+                      type="url"
+                      value={customStyles.secondaryImageUrl || ''}
+                      onChange={(e) => updateStyles({ secondaryImageUrl: e.target.value })}
+                      placeholder="Trust badge or powered-by logo..."
+                      className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all placeholder:text-gray-400"
+                    />
+                  </div>
+                  {customStyles.secondaryImageUrl && (
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">Click Link (Optional)</label>
+                      <input
+                        type="url"
+                        value={customStyles.secondaryImageLink || ''}
+                        onChange={(e) => updateStyles({ secondaryImageLink: e.target.value })}
+                        placeholder="https://yourwebsite.com"
+                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all placeholder:text-gray-400"
+                      />
+                    </div>
                   )}
                 </div>
 
@@ -420,54 +502,49 @@ export function Sidebar() {
 
             <div>
               <h3 className="text-[11px] font-extrabold text-gray-400 uppercase tracking-widest mb-3 px-1">Advanced Sizing</h3>
-              <div className="space-y-4">
+              <div className="space-y-4 p-3 bg-gray-50 border border-gray-100 rounded-xl">
                 <div>
-                  <label className="flex items-center justify-between text-xs font-bold text-gray-700 mb-2 px-1">
-                    <span>Form Width</span>
-                    <span className="text-pink-600">{customStyles.containerWidth}px</span>
+                  <label className="flex flex-col text-xs font-bold text-gray-700 mb-1">
+                    <div className="flex justify-between mb-1">
+                      <span>Form Width</span>
+                      <span className="text-indigo-600">{customStyles.containerWidth}px</span>
+                    </div>
+                    <input
+                      type="range" min="320" max="1200" step="10"
+                      value={customStyles.containerWidth}
+                      onChange={(e) => updateStyles({ containerWidth: parseInt(e.target.value) })}
+                      className="w-full accent-indigo-500"
+                    />
                   </label>
-                  <input
-                    type="range"
-                    min="400"
-                    max="1200"
-                    step="10"
-                    value={customStyles.containerWidth || 640}
-                    onChange={(e) => updateStyles({ containerWidth: parseInt(e.target.value) })}
-                    className="w-full accent-pink-500"
-                  />
                 </div>
                 <div>
-                  <label className="flex items-center justify-between text-xs font-bold text-gray-700 mb-2 px-1">
-                    <span>Border Radius</span>
-                    <span className="text-pink-600">{customStyles.borderRadius}px</span>
+                  <label className="flex flex-col text-xs font-bold text-gray-700 mb-1">
+                    <div className="flex justify-between mb-1">
+                      <span>Border Radius</span>
+                      <span className="text-indigo-600">{customStyles.borderRadius}px</span>
+                    </div>
+                    <input
+                      type="range" min="0" max="64" step="1"
+                      value={customStyles.borderRadius}
+                      onChange={(e) => updateStyles({ borderRadius: parseInt(e.target.value) })}
+                      className="w-full accent-indigo-500"
+                    />
                   </label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="64"
-                    step="4"
-                    value={customStyles.borderRadius || 16}
-                    onChange={(e) => updateStyles({ borderRadius: parseInt(e.target.value) })}
-                    className="w-full accent-pink-500"
-                  />
                 </div>
                 <div>
-                  <label className="flex items-center justify-between text-xs font-bold text-gray-700 mb-2 px-1">
-                    <span>Global Zoom (Scale)</span>
-                    <span className="text-pink-600">{Math.round((customStyles.formScale || 1) * 100)}%</span>
+                  <label className="flex flex-col text-xs font-bold text-gray-700 mb-1">
+                    <div className="flex justify-between mb-1">
+                      <span>Global Zoom (Scale)</span>
+                      <span className="text-indigo-600">{Math.round((customStyles.formScale || 1) * 100)}%</span>
+                    </div>
+                    <input
+                      type="range" min="0.5" max="1.5" step="0.05"
+                      value={customStyles.formScale || 1}
+                      onChange={(e) => updateStyles({ formScale: parseFloat(e.target.value) })}
+                      className="w-full accent-indigo-500"
+                    />
                   </label>
-                  <input
-                    type="range"
-                    min="0.5"
-                    max="1.5"
-                    step="0.05"
-                    value={customStyles.formScale || 1}
-                    onChange={(e) => updateStyles({ formScale: parseFloat(e.target.value) })}
-                    className="w-full accent-pink-500"
-                  />
-                  <p className="text-[10px] text-gray-400 mt-1 px-1">
-                    Scales the entire form container up or down instantly.
-                  </p>
+                  <p className="text-[9px] text-gray-400 mt-1 italic">Scales the entire form container up or down instantly.</p>
                 </div>
               </div>
             </div>

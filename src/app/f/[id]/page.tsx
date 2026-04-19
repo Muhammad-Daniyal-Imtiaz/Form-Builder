@@ -58,105 +58,11 @@ export default async function PublicFormPage({
     form.form_fields.sort((a: any, b: any) => a.order - b.order)
   }
 
-  const fontUrl = customStyles.fontFamily !== 'Inter' && customStyles.fontFamily !== 'Georgia'
-    ? `https://fonts.googleapis.com/css2?family=${customStyles.fontFamily.replace(' ', '+')}:wght@400;500;600;700;800&display=swap`
-    : null
-
   return (
-    <div 
-      className="min-h-screen transition-all duration-300 relative" 
-      style={{ 
-        backgroundColor: customStyles.pageBgColor,
-        backgroundImage: customStyles.pageBgImage ? `url(${customStyles.pageBgImage})` : 'none',
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundAttachment: 'fixed'
-      }}
-    >
-      <div 
-        className="min-h-screen py-12 px-4 sm:px-6"
-        style={customStyles.pageBgImage ? {
-          backdropFilter: `blur(${customStyles.pageBgBlur}px)`,
-          WebkitBackdropFilter: `blur(${customStyles.pageBgBlur}px)`,
-          backgroundColor: `rgba(0,0,0,${(customStyles.pageBgOverlayOpacity || 0) / 100})`,
-        } : {}}
-      >
-        <div
-          className="mx-auto overflow-hidden transition-all duration-300 shadow-2xl"
-          style={{
-            maxWidth: `${customStyles.containerWidth}px`,
-            borderRadius: `${customStyles.borderRadius}px`,
-            fontFamily: `"${customStyles.fontFamily}", sans-serif`,
-            fontSize: `${customStyles.fontSizeBase}px`,
-            background: customStyles.bodyBg,
-            transform: `scale(${customStyles.formScale || 1})`,
-            transformOrigin: 'top center'
-          }}
-        >
-          {/* COVER IMAGE */}
-          {form.cover_image_url && (
-            <div 
-              className="w-full overflow-hidden bg-gray-200 border-b border-gray-100"
-              style={{ height: `${customStyles.coverHeight}px` }}
-            >
-              <img
-                src={form.cover_image_url}
-                alt="Cover"
-                className="w-full h-full"
-                style={{ objectFit: customStyles.coverImageFit as any || 'cover' }}
-              />
-            </div>
-          )}
-
-        {/* FORM HEADER */}
-        <div
-          style={{
-            background: customStyles.headerBg,
-            padding: `${customStyles.containerPadding}px`,
-            position: 'relative',
-            textAlign: (customStyles as any).headerAlignment || 'left'
-          }}
-        >
-          {/* LOGO */}
-          {form.logo_url && (
-            <div 
-              className="mb-6 flex"
-              style={{ 
-                justifyContent: customStyles.logoAlignment === 'center' ? 'center' : customStyles.logoAlignment === 'right' ? 'flex-end' : 'flex-start' 
-              }}
-            >
-              <img
-                src={form.logo_url}
-                alt="Logo"
-                className="object-contain"
-                style={{ 
-                  height: `${customStyles.logoHeight}px`,
-                  borderRadius: `${customStyles.logoBorderRadius}px`
-                }}
-              />
-            </div>
-          )}
-
-          <h1
-            className="text-3xl sm:text-4xl font-extrabold tracking-tight"
-            style={{ color: customStyles.headerText }}
-          >
-            {form.title}
-          </h1>
-          {displayDescription && (
-            <p
-              className="mt-4 text-lg whitespace-pre-wrap"
-              style={{ color: customStyles.headerText, opacity: 0.85 }}
-            >
-              {displayDescription}
-            </p>
-          )}
-        </div>
-
-        {/* FORM BODY */}
-        <PublicForm form={form} customStyles={customStyles} formSettings={formSettings} />
-      </div>
-     </div>
-    </div>
+    <PublicForm 
+      form={form} 
+      customStyles={customStyles} 
+      formSettings={formSettings} 
+    />
   )
 }

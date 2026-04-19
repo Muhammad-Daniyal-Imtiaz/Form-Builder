@@ -209,8 +209,15 @@ export function Canvas() {
     ? `https://fonts.googleapis.com/css2?family=${customStyles.fontFamily.replace(' ', '+')}:wght@400;700;800&display=swap`
     : null;
 
+  const isSplit = customStyles.layout === 'split'
+  const isSidebar = customStyles.layout === 'sidebar'
+  const side = customStyles.layoutSide || 'left'
+
   return (
-    <div className="flex-1 overflow-y-auto custom-scrollbar relative" onClick={() => setActiveFieldId(null)} style={bgStyle}>
+    <div className={cn(
+      "flex-1 overflow-y-auto custom-scrollbar relative flex flex-col",
+      (isSplit || isSidebar) ? "lg:flex-row" : "items-center py-12 px-4"
+    )} onClick={() => setActiveFieldId(null)} style={bgStyle}>
       {fontUrl && <style dangerouslySetInnerHTML={{ __html: `@import url('${fontUrl}');` }} />}
       <style>{`
         ::placeholder {
@@ -218,150 +225,118 @@ export function Canvas() {
           opacity: 0.5 !important;
         }
       `}</style>
-      <div className="min-h-full py-12 px-4 sm:px-8" style={bgOverlayStyle}>
+
+      {/* Background Overlay */}
+      <div className="fixed inset-0 pointer-events-none" style={bgOverlayStyle} />
+
+      {/* --- BRANDING SIDE (SPLIT/SIDEBAR) --- */}
+      {(isSplit || isSidebar) && (
+        <div className={cn(
+          "relative z-10 p-8 lg:p-12 flex flex-col justify-between border-white/10",
+          isSplit ? "lg:w-1/2 min-h-[300px] lg:min-h-full" : "lg:w-[320px] lg:shrink-0 lg:min-h-full border-r",
+          side === 'right' && "lg:order-last border-l"
+        )} style={{ 
+          background: isSplit 
+            ? (form?.cover_image_url ? `linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)), url(${form.cover_image_url}) center/cover` : customStyles.headerBg)
+            : customStyles.headerBg,
+          color: customStyles.headerText
+        }}>
+          <div className="relative z-10">
+            {form?.logo_url && (
+              <div className="mb-10" style={{ textAlign: customStyles.logoAlignment }}>
+                <img src={form.logo_url} alt="Logo" style={{ height: customStyles.logoHeight, borderRadius: customStyles.logoBorderRadius, display: 'inline-block' }} />
+              </div>
+            )}
+            <h2 className="text-3xl lg:text-5xl font-black mb-4" style={{ textAlign: customStyles.headerAlignment }}>{form?.title || 'Form Title'}</h2>
+            <p className="text-lg opacity-80" style={{ textAlign: customStyles.headerAlignment }}>{form?.description || 'Description...'}</p>
+          </div>
+          
+          <div className="relative z-10 mt-12">
+            {customStyles.secondaryImageUrl && (
+              <div className="pt-8 border-t border-white/20">
+                <img src={customStyles.secondaryImageUrl} alt="Secondary" className="max-h-12 opacity-60" />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* --- FORM SIDE --- */}
+      <div className={cn(
+        "flex-1 relative z-10 flex flex-col items-center",
+        (isSplit || isSidebar) ? "bg-white lg:bg-transparent lg:shadow-none min-h-full" : "w-full"
+      )}>
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-        style={containerStyle} 
-        className="relative overflow-hidden transition-all duration-300 shadow-2xl"
-      >
-        {/* Cover Image */}
-        {form?.cover_image_url && (
-          <div className="w-full bg-gray-200 border-b border-gray-100" style={{ height: customStyles.coverHeight || 240 }}>
-            <img 
-              src={form.cover_image_url} 
-              alt="Cover" 
-              className="w-full h-full" 
-              style={{ objectFit: customStyles.coverImageFit || 'cover' }}
-            />
-          </div>
-        )}
-
-        {/* Form Header */}
-        <div style={{ backgroundColor: customStyles.headerBg, color: customStyles.headerText, textAlign: customStyles.headerAlignment }} className="px-8 py-10 transition-colors">
-          {form?.logo_url && (
-            <div className="mb-6 flex" style={{ 
-              justifyContent: customStyles.logoAlignment === 'center' ? 'center' : customStyles.logoAlignment === 'right' ? 'flex-end' : 'flex-start' 
-            }}>
-              <img 
-                src={form.logo_url} 
-                alt="Logo" 
-                className="object-contain transition-all" 
-                style={{ 
-                  height: customStyles.logoHeight || 48, 
-                  borderRadius: customStyles.logoBorderRadius 
-                }}
-              />
-            </div>
+          style={{
+            ...containerStyle,
+            maxWidth: (isSplit || isSidebar) ? '100%' : customStyles.containerWidth,
+            width: (isSplit || isSidebar) ? '100%' : 'auto',
+            borderRadius: (isSplit || isSidebar) ? '0' : customStyles.borderRadius,
+            boxShadow: (isSplit || isSidebar) ? 'none' : customStyles.boxShadow,
+          }} 
+          className={cn(
+            "relative transition-all duration-300",
+            (isSplit || isSidebar) ? "bg-white h-full" : "shadow-2xl overflow-hidden"
           )}
+        >
+          <div className="max-w-4xl mx-auto w-full flex flex-col h-full bg-white">
+            {/* Classic Header (Only for Centered Layout) */}
+            {!isSplit && !isSidebar && (
+              <>
+                {form?.cover_image_url && (
+                  <div className="w-full bg-gray-200 border-b border-gray-100" style={{ height: customStyles.coverHeight || 240 }}>
+                    <img src={form.cover_image_url} alt="Cover" className="w-full h-full object-cover" />
+                  </div>
+                )}
+                <div style={{ backgroundColor: customStyles.headerBg, color: customStyles.headerText, textAlign: customStyles.headerAlignment }} className="px-10 py-12">
+                  {form?.logo_url && (
+                    <div className="mb-6" style={{ textAlign: customStyles.logoAlignment }}>
+                      <img src={form.logo_url} alt="Logo" style={{ height: customStyles.logoHeight, borderRadius: customStyles.logoBorderRadius, display: 'inline-block' }} />
+                    </div>
+                  )}
+                  <h1 className="text-4xl font-black mb-4">{form?.title || 'Form Title'}</h1>
+                  <p className="text-lg opacity-80">{form?.description || 'Description...'}</p>
+                </div>
+              </>
+            )}
 
-          <input 
-            type="text" 
-            value={form?.title || ''} 
-            readOnly
-            className="text-4xl font-extrabold w-full bg-transparent outline-none pointer-events-none mb-4" 
-            placeholder="Form Title"
-          />
-          <textarea 
-            value={form?.description || ''} 
-            readOnly
-            rows={2} 
-            className="w-full bg-transparent outline-none pointer-events-none resize-none text-lg opacity-80" 
-            placeholder="Description..."
-          />
-        </div>
-
-        {/* Canvas Toolbar / View Toggle */}
-        <div className="flex items-center justify-between px-8 py-3 bg-gray-50/80 border-b border-gray-100 backdrop-blur-sm sticky top-0 z-30">
-          <div className="flex bg-white p-1 rounded-xl shadow-sm border border-gray-200">
-            <button
-              onClick={() => setBuilderViewMode('all')}
-              className={cn(
-                "px-4 py-1.5 text-[10px] font-black uppercase tracking-tighter rounded-lg transition-all",
-                builderViewMode === 'all' ? "bg-indigo-600 text-white shadow-md shadow-indigo-200" : "text-gray-400 hover:text-gray-600"
-              )}
-            >
-              All Pages
-            </button>
-            <button
-              onClick={() => setBuilderViewMode('single')}
-              className={cn(
-                "px-4 py-1.5 text-[10px] font-black uppercase tracking-tighter rounded-lg transition-all",
-                builderViewMode === 'single' ? "bg-indigo-600 text-white shadow-md shadow-indigo-200" : "text-gray-400 hover:text-gray-600"
-              )}
-            >
-              Single Step
-            </button>
-          </div>
-
-          {builderViewMode === 'single' && (
-            <div className="flex items-center gap-4">
-              <button 
-                disabled={builderActivePage === 0}
-                onClick={() => setBuilderActivePage(Math.max(0, builderActivePage - 1))}
-                className="p-1.5 text-gray-400 hover:text-indigo-600 disabled:opacity-30 transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
-              </button>
-              <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest bg-gray-100 px-3 py-1 rounded-full">
-                Step {builderActivePage + 1} <span className="opacity-40">/ {pageCount}</span>
+            {/* Canvas Toolbar */}
+            <div className="flex items-center justify-between px-8 py-3 bg-gray-50/80 border-b border-gray-100 backdrop-blur-sm sticky top-0 z-30">
+              <div className="flex bg-white p-1 rounded-xl shadow-sm border border-gray-200">
+                <button onClick={() => setBuilderViewMode('all')} className={cn("px-4 py-1.5 text-[10px] font-black uppercase tracking-tighter rounded-lg transition-all", builderViewMode === 'all' ? "bg-indigo-600 text-white shadow-md shadow-indigo-200" : "text-gray-400")}>All Pages</button>
+                <button onClick={() => setBuilderViewMode('single')} className={cn("px-4 py-1.5 text-[10px] font-black uppercase tracking-tighter rounded-lg transition-all", builderViewMode === 'single' ? "bg-indigo-600 text-white shadow-md shadow-indigo-200" : "text-gray-400")}>Single Step</button>
               </div>
-              <button 
-                disabled={builderActivePage === pageCount - 1}
-                onClick={() => setBuilderActivePage(Math.min(pageCount - 1, builderActivePage + 1))}
-                className="p-1.5 text-gray-400 hover:text-indigo-600 disabled:opacity-30 transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
-              </button>
+
+              {builderViewMode === 'single' && (
+                <div className="flex items-center gap-4">
+                  <button disabled={builderActivePage === 0} onClick={() => setBuilderActivePage(Math.max(0, builderActivePage - 1))} className="p-1.5 text-gray-400 hover:text-indigo-600 disabled:opacity-30 transition-colors"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg></button>
+                  <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest bg-gray-100 px-3 py-1 rounded-full">Step {builderActivePage + 1} / {pageCount}</div>
+                  <button disabled={builderActivePage === pageCount - 1} onClick={() => setBuilderActivePage(Math.min(pageCount - 1, builderActivePage + 1))} className="p-1.5 text-gray-400 hover:text-indigo-600 disabled:opacity-30 transition-colors"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg></button>
+                </div>
+              )}
             </div>
-          )}
-        </div>
 
-        {/* Fields Area */}
-        <div className="p-8 space-y-12">
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-          >
-            {Array.from({ length: pageCount }).map((_, pIdx) => {
-              const isActive = builderViewMode === 'all' || builderActivePage === pIdx
-              if (!isActive) return null
-
-              const pageFields = fields.filter(f => f.pageIndex === pIdx)
-              
-              return (
-                <div key={pIdx} className="space-y-4 relative">
-                  <AnimatePresence mode="wait">
-                    <motion.div
-                      key={pIdx}
-                      initial={builderViewMode === 'single' ? { opacity: 0, x: 20 } : false}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -20 }}
-                      className="space-y-4"
-                    >
-                      {/* Page Divider / Header */}
+            {/* Field Area */}
+            <div className="p-10 space-y-12 flex-1">
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                {Array.from({ length: pageCount }).map((_, pIdx) => {
+                  const isActive = builderViewMode === 'all' || builderActivePage === pIdx
+                  if (!isActive) return null
+                  const pageFields = fields.filter(f => f.pageIndex === pIdx)
+                  return (
+                    <div key={pIdx} className="space-y-4 relative">
                       <div className="flex items-center justify-between mb-6 group/page">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-md shadow-indigo-100">
-                            {pIdx + 1}
-                          </div>
+                          <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-md shadow-indigo-100">{pIdx + 1}</div>
                           <h4 className="text-xs font-black uppercase tracking-widest text-gray-400">Page {pIdx + 1}</h4>
                         </div>
                         {pageCount > 1 && (
-                          <button 
-                            onClick={(e) => { e.stopPropagation(); removePage(pIdx) }}
-                            className="opacity-0 group-hover/page:opacity-100 px-3 py-1 text-[10px] font-bold text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                          >
-                            Delete Page
-                          </button>
+                          <button onClick={(e) => { e.stopPropagation(); removePage(pIdx) }} className="opacity-0 group-hover/page:opacity-100 px-3 py-1 text-[10px] font-bold text-red-500 hover:bg-red-50 rounded-lg transition-all">Delete Page</button>
                         )}
                       </div>
-
-                      <SortableContext
-                        items={pageFields.map(f => f.id)}
-                        strategy={verticalListSortingStrategy}
-                      >
+                      <SortableContext items={pageFields.map(f => f.id)} strategy={verticalListSortingStrategy}>
                         {pageFields.length === 0 ? (
                           <div className="py-10 border-2 border-dashed border-indigo-50/50 bg-indigo-50/10 rounded-2xl flex flex-col items-center justify-center text-indigo-300">
                             <p className="text-[10px] font-bold uppercase tracking-widest">Empty Page</p>
@@ -372,42 +347,35 @@ export function Canvas() {
                           ))
                         )}
                       </SortableContext>
-                    </motion.div>
-                  </AnimatePresence>
-                  
-                  {/* Connection Line */}
-                  {pIdx < pageCount - 1 && builderViewMode === 'all' && (
-                    <div className="absolute -bottom-10 left-4 w-px h-8 bg-gray-100" />
-                  )}
-                </div>
-              )
-            })}
-          </DndContext>
+                      {pIdx < pageCount - 1 && builderViewMode === 'all' && <div className="absolute -bottom-10 left-4 w-px h-8 bg-gray-100" />}
+                    </div>
+                  )
+                })}
+              </DndContext>
 
-          {/* Add Page Control */}
-          <div className="flex justify-center pt-4">
-            <button
-              onClick={(e) => { e.stopPropagation(); addPage() }}
-              className="flex items-center gap-2 px-6 py-3 bg-white border border-dashed border-gray-300 rounded-2xl text-xs font-bold text-indigo-600 hover:border-indigo-400 hover:bg-indigo-50/50 transition-all shadow-sm"
-            >
-              <Plus className="w-4 h-4" />
-              Add New Page Break
-            </button>
-          </div>
-          
-          {fields.length > 0 && (
-            <div className="pt-8 mt-4 border-t border-gray-100">
-              <button 
-                disabled 
-                className="w-full py-4 rounded-xl text-white font-bold text-lg opacity-80 cursor-not-allowed transition-colors shadow-lg shadow-indigo-100"
-                style={{ backgroundColor: customStyles.accentColor }}
-              >
-                {formSettings.submitButtonText || 'Submit Form'}
-              </button>
+              <div className="flex justify-center pt-4">
+                <button onClick={(e) => { e.stopPropagation(); addPage() }} className="flex items-center gap-2 px-6 py-3 bg-white border border-dashed border-gray-300 rounded-2xl text-xs font-bold text-indigo-600 hover:border-indigo-400 transition-all shadow-sm">
+                  <Plus className="w-4 h-4" /> Add New Page Break
+                </button>
+              </div>
+
+              {fields.length > 0 && (
+                <div className="pt-8 mt-4 border-t border-gray-100">
+                  <button disabled className="w-full py-4 rounded-xl text-white font-bold text-lg opacity-80 cursor-not-allowed shadow-lg shadow-indigo-100" style={{ backgroundColor: customStyles.accentColor }}>
+                    {formSettings.submitButtonText || 'Submit Form'}
+                  </button>
+                </div>
+              )}
             </div>
-          )}
-        </div>
-      </motion.div>
+
+            {/* Secondary Footer Branding (Only for Centered Layout) */}
+            {!isSplit && !isSidebar && customStyles.secondaryImageUrl && (
+              <div className="pb-12 opacity-30">
+                <img src={customStyles.secondaryImageUrl} alt="Secondary" className="max-h-8 mx-auto" />
+              </div>
+            )}
+          </div>
+        </motion.div>
       </div>
     </div>
   )

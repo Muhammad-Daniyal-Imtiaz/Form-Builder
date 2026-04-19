@@ -52,6 +52,10 @@ export interface CustomStyles {
   formScale: number;
   headerAlignment: 'left' | 'center' | 'right';
   coverImageFit: 'cover' | 'contain' | 'fill';
+  layout: 'centered' | 'split' | 'sidebar';
+  layoutSide: 'left' | 'right';
+  secondaryImageUrl: string;
+  secondaryImageLink: string;
 }
 
 export interface FormSettings {
@@ -104,13 +108,17 @@ export const DEFAULT_STYLES: CustomStyles = {
   logoAlignment: 'left',
   logoBorderRadius: 8,
   coverHeight: 240,
-  pageBgColor: '#f3f4f6',
+  pageBgColor: '#f8fafc',
   pageBgImage: '',
   pageBgBlur: 0,
-  pageBgOverlayOpacity: 10,
+  pageBgOverlayOpacity: 0,
   formScale: 1,
   headerAlignment: 'left',
-  coverImageFit: 'cover'
+  coverImageFit: 'cover',
+  layout: 'centered',
+  layoutSide: 'left',
+  secondaryImageUrl: '',
+  secondaryImageLink: '',
 };
 
 export const PRESET_THEMES: Record<string, Partial<CustomStyles>> = {
