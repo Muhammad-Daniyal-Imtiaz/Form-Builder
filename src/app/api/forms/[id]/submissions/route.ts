@@ -160,13 +160,34 @@ export async function POST(
       // 2. ZAPIER
       if (formConfig.zapier_enabled && formConfig.zapier_webhook_url) {
         try {
+          // Fetch fields to map IDs to labels
+          const { data: fields } = await admin.from('form_fields').select('id, label').eq('form_id', id).order('order');
+          
+          const labelData: Record<string, any> = {};
+          if (fields) {
+            fields.forEach(f => {
+              let val = data[f.id] || data[f.label] || '';
+              if (Array.isArray(val)) val = val.join(', ');
+              
+              // Handle duplicate labels
+              let key = f.label;
+              let i = 1;
+              while (labelData[key]) {
+                key = `${f.label}_${++i}`;
+              }
+              labelData[key] = val;
+            });
+          }
+
           const zapResp = await fetch(formConfig.zapier_webhook_url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              id: submission.id,
+              submission_id: submission.id,
+              form_id: id,
+              form_name: formConfig.google_sheet_name || 'My Form', // Fallback or use a better field
               submitted_at: submission.submitted_at,
-              ...data
+              ...labelData
             })
           });
 

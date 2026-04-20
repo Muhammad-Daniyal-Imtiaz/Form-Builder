@@ -79,9 +79,10 @@ export async function POST(
 
     // BULK SYNC
     if (action === 'sync-existing') {
-        const { data: form } = await supabase
+        const admin = await createAdminClient();
+        const { data: form } = await admin
           .from('forms')
-          .select('zapier_webhook_url, zapier_enabled')
+          .select('zapier_webhook_url, zapier_enabled, google_sheet_name')
           .eq('id', id)
           .single();
   
@@ -89,8 +90,11 @@ export async function POST(
             return NextResponse.json({ error: 'Webhook URL not configured' }, { status: 400 });
         }
 
+        // Fetch fields to map IDs to labels
+        const { data: fields } = await admin.from('form_fields').select('id, label').eq('form_id', id).order('order');
+
         // Get unsynced submissions
-        const { data: submissions } = await supabase
+        const { data: submissions } = await admin
           .from('submissions')
           .select('*')
           .eq('form_id', id)
@@ -101,21 +105,33 @@ export async function POST(
             return NextResponse.json({ success: true, count: 0, message: 'All data already synced!' });
         }
 
-        // Send to Zapier
-        // Zapier webhooks usually accept one object at a time or an array. 
-        // We'll send them one by one for safety or in a small batch if possible.
-        // For simplicity, we'll send a single array if Zapier supports it, 
-        // or we can loop. Most Zapier Catch Hooks expect individual objects.
-        
         const results = await Promise.all(submissions.map(async (sub) => {
             try {
+                // Map ID data to Label data
+                const labelData: Record<string, any> = {};
+                if (fields) {
+                    fields.forEach(f => {
+                        let val = sub.data[f.id] || sub.data[f.label] || '';
+                        if (Array.isArray(val)) val = val.join(', ');
+                        
+                        let key = f.label;
+                        let i = 1;
+                        while (labelData[key]) {
+                            key = `${f.label}_${++i}`;
+                        }
+                        labelData[key] = val;
+                    });
+                }
+
                 const response = await fetch(form.zapier_webhook_url!, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        id: sub.id,
+                        submission_id: sub.id,
+                        form_id: id,
+                        form_name: form.google_sheet_name || 'My Form',
                         submitted_at: sub.submitted_at,
-                        ...sub.data
+                        ...labelData
                     })
                 });
                 return response.ok;
