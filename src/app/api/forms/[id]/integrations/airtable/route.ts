@@ -120,6 +120,18 @@ export async function POST(
         
         // 3. Create Table if it doesn't exist
         if (!table) {
+            // Deduplicate labels for Airtable columns
+            const usedNames = new Set(["Submission ID", "Submitted At"]);
+            const airtableFields = fields.map(f => {
+                let name = f.label;
+                let counter = 1;
+                while (usedNames.has(name)) {
+                    name = `${f.label} (${++counter})`;
+                }
+                usedNames.add(name);
+                return { name, type: "multilineText" as const };
+            });
+
             const createTableResp = await fetch(`https://api.airtable.com/v0/meta/bases/${form.airtable_base_id}/tables`, {
                 method: 'POST',
                 headers: airtableHeaders,
@@ -128,28 +140,50 @@ export async function POST(
                     description: "Automatically created by Form Builder",
                     fields: [
                         { name: "Submission ID", type: "singleLineText" },
-                        { name: "Submitted At", type: "dateTime", options: { format: "iso", precision: 0 } },
-                        ...fields.map(f => ({ name: f.label, type: "multilineText" }))
+                        { 
+                          name: "Submitted At", 
+                          type: "dateTime", 
+                          options: { 
+                            dateFormat: { name: "iso" },
+                            timeFormat: { name: "24hour" },
+                            timeZone: "utc"
+                          } 
+                        },
+                        ...airtableFields
                     ]
                 })
             });
 
             if (!createTableResp.ok) {
                 const errData = await createTableResp.json();
-                return NextResponse.json({ error: `Failed to create table: ${errData.error?.message}. Ensure 'schema.bases:write' scope.` }, { status: createTableResp.status });
+                const errMsg = errData.error?.message || errData.message || JSON.stringify(errData);
+                return NextResponse.json({ error: `Failed to create table: ${errMsg}. Ensure 'schema.bases:write' scope.` }, { status: createTableResp.status });
             }
             table = await createTableResp.json();
         } else {
-            // 4. Ensure all columns exist
-            const existingFieldNames = table.fields.map((f: any) => f.name);
-            const fieldsToCreate = fields.filter(f => !existingFieldNames.includes(f.label));
+            // 4. Ensure all columns exist (Deduplicate here too)
+            const existingFieldNames = new Set(table.fields.map((f: any) => f.name));
+            const fieldsToCreate = [];
+            
+            const usedNames = new Set(existingFieldNames);
+            for (const f of fields) {
+                if (!existingFieldNames.has(f.label)) {
+                    let name = f.label;
+                    let counter = 1;
+                    while (usedNames.has(name)) {
+                        name = `${f.label} (${++counter})`;
+                    }
+                    usedNames.add(name);
+                    fieldsToCreate.push({ label: f.label, airtable_name: name });
+                }
+            }
 
             for (const f of fieldsToCreate) {
                 await fetch(`https://api.airtable.com/v0/meta/bases/${form.airtable_base_id}/tables/${table.id}/fields`, {
                     method: 'POST',
                     headers: airtableHeaders,
                     body: JSON.stringify({
-                        name: f.label,
+                        name: f.airtable_name,
                         type: "multilineText"
                     })
                 });
@@ -169,6 +203,19 @@ export async function POST(
         }
 
         // 6. Push Records (Airtable handles up to 10 records per request)
+        // Re-generate name mapping to match the table schema created/found above
+        const usedNamesForMapping = new Set(["Submission ID", "Submitted At"]);
+        const fieldNameMap: Record<string, string> = {};
+        fields.forEach(f => {
+            let name = f.label;
+            let counter = 1;
+            while (usedNamesForMapping.has(name)) {
+                name = `${f.label} (${++counter})`;
+            }
+            usedNamesForMapping.add(name);
+            fieldNameMap[f.id] = name;
+        });
+
         const successIds: string[] = [];
         for (let i = 0; i < submissions.length; i += 10) {
             const chunk = submissions.slice(i, i + 10);
@@ -178,9 +225,10 @@ export async function POST(
                     "Submitted At": sub.submitted_at
                 };
                 fields.forEach(f => {
+                    const airtableColName = fieldNameMap[f.id];
                     let val = sub.data[f.id] || sub.data[f.label] || '';
                     if (Array.isArray(val)) val = val.join(', ');
-                    mappedFields[f.label] = String(val);
+                    mappedFields[airtableColName] = String(val);
                 });
                 return { fields: mappedFields };
             });
