@@ -6,7 +6,7 @@ import {
   Type, Mail, Hash, AlignLeft, List, CheckSquare, 
   FileUp, Palette, Plus, Settings, Check, 
   MousePointer2, MessageSquare, ExternalLink, RefreshCcw,
-  Share2, Globe, Code, Copy, Search, Plug, Database, FileSpreadsheet
+  Share2, Globe, Code, Copy, Search, Plug, Database, FileSpreadsheet, Zap
 } from 'lucide-react'
 import { useBuilder } from './BuilderContext'
 import { FieldType, PRESET_THEMES, AVAILABLE_FONTS } from './types'
@@ -38,6 +38,10 @@ export function Sidebar() {
     sheetName?: string;
     isEnabled: boolean;
   } | null>(null)
+  const [zapierStatus, setZapierStatus] = useState<{
+    webhookUrl?: string;
+    isEnabled: boolean;
+  } | null>(null)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -48,11 +52,18 @@ export function Sidebar() {
 
   const fetchStatus = async () => {
     try {
-      const resp = await fetch(`/api/forms/${form.id}/integrations/google-sheets`)
-      const data = await resp.json()
-      setSheetStatus(data)
+      const [sheetResp, zapierResp] = await Promise.all([
+        fetch(`/api/forms/${form.id}/integrations/google-sheets`),
+        fetch(`/api/forms/${form.id}/integrations/zapier`)
+      ])
+      
+      const sheetData = await sheetResp.json()
+      const zapierData = await zapierResp.json()
+      
+      setSheetStatus(sheetData)
+      setZapierStatus(zapierData)
     } catch (err) {
-      console.error('Failed to fetch sheet status:', err)
+      console.error('Failed to fetch integration status:', err)
     }
   }
 
@@ -69,6 +80,24 @@ export function Sidebar() {
       }
     } catch (err) {
       console.error(`Action ${action} failed:`, err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleZapierAction = async (action: string, payload: any = {}) => {
+    setLoading(true)
+    try {
+      const resp = await fetch(`/api/forms/${form.id}/integrations/zapier`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, ...payload })
+      })
+      if (resp.ok) {
+        await fetchStatus()
+      }
+    } catch (err) {
+      console.error(`Zapier action ${action} failed:`, err)
     } finally {
       setLoading(false)
     }
@@ -688,7 +717,8 @@ export function Sidebar() {
                   />
                 </div>
 
-                <div className="pt-2">
+                <div className="pt-2 space-y-3">
+                  {/* GOOGLE SHEETS */}
                   <div className={cn(
                     "border rounded-xl bg-white overflow-hidden transition-all duration-300",
                     sheetStatus?.isEnabled ? "border-green-500 shadow-[0_0_0_1px_rgba(34,197,94,0.3)] shadow-green-100" : "border-gray-200 hover:border-green-300"
@@ -738,7 +768,6 @@ export function Sidebar() {
                       )}
                     </div>
                     
-                    {/* Active Configuration */}
                     {sheetStatus?.isConnected && (
                       <div className="bg-green-50/50 p-3 border-t border-green-100 space-y-3">
                         {!sheetStatus.sheetId ? (
@@ -758,7 +787,7 @@ export function Sidebar() {
                               <div className="flex items-center gap-2 overflow-hidden">
                                 <Check className="w-3 h-3 text-green-600 shrink-0" />
                                 <span className="text-[10px] font-medium text-green-800 truncate">
-                                  Linked to "{sheetStatus.sheetName || 'Responses'}"
+                                  Linked: {sheetStatus.sheetName || 'Responses'}
                                 </span>
                               </div>
                               <button
@@ -768,29 +797,84 @@ export function Sidebar() {
                                 Unlink
                               </button>
                             </div>
-                            
-                            <div className="grid grid-cols-2 gap-2">
-                              <button
-                                onClick={() => {
-                                  window.open(`https://docs.google.com/spreadsheets/d/${sheetStatus.sheetId}`, '_blank')
-                                }}
-                                className="flex items-center justify-center gap-1 py-1.5 px-2 bg-white border border-gray-200 text-gray-700 text-[10px] font-bold rounded-md hover:border-gray-300 transition-colors"
-                              >
-                                <ExternalLink className="w-3 h-3" />
-                                Open Sheet
-                              </button>
-                              <button
-                                onClick={fetchStatus}
-                                className="flex items-center justify-center gap-1 py-1.5 px-2 bg-white border border-gray-200 text-gray-700 text-[10px] font-bold rounded-md hover:border-gray-300 transition-colors"
-                              >
-                                <RefreshCcw className="w-3 h-3" />
-                                Refresh
-                              </button>
-                            </div>
+                            <button
+                               onClick={() => {
+                                 window.open(`https://docs.google.com/spreadsheets/d/${sheetStatus.sheetId}`, '_blank')
+                               }}
+                               className="w-full flex items-center justify-center gap-1 py-1.5 px-2 bg-white border border-gray-200 text-gray-700 text-[10px] font-bold rounded-md hover:border-gray-300 transition-colors"
+                            >
+                               <ExternalLink className="w-3 h-3" />
+                               Open Spreadsheet
+                            </button>
                           </>
                         )}
                       </div>
                     )}
+                  </div>
+
+                  {/* ZAPIER INTEGRATION */}
+                  <div className={cn(
+                    "border rounded-xl bg-white overflow-hidden transition-all duration-300",
+                    zapierStatus?.isEnabled ? "border-orange-500 shadow-[0_0_0_1px_rgba(249,115,22,0.3)] shadow-orange-100" : "border-gray-200 hover:border-orange-300"
+                  )}>
+                    <div className="p-3 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded shrink-0 flex items-center justify-center bg-[#FF4F00]/10 text-[#FF4F00]">
+                          <Zap className="w-4 h-4 fill-current" />
+                        </div>
+                        <div>
+                          <div className="text-xs font-bold text-gray-900">Zapier Webhooks</div>
+                          <div className="text-[10px] text-gray-500">
+                            Automation via webhooks
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {zapierStatus?.webhookUrl && (
+                        <button
+                          onClick={() => handleZapierAction('toggle', { enabled: !zapierStatus.isEnabled })}
+                          disabled={loading}
+                          className={cn(
+                            "relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none",
+                            zapierStatus.isEnabled ? "bg-orange-600" : "bg-gray-200"
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              "inline-block h-3 w-3 transform rounded-full bg-white transition-transform",
+                              zapierStatus.isEnabled ? "translate-x-5" : "translate-x-1"
+                            )}
+                          />
+                        </button>
+                      )}
+                    </div>
+                    
+                    <div className="bg-orange-50/50 p-3 border-t border-orange-100 space-y-2">
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-tight px-1">Webhook URL</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="url"
+                          defaultValue={zapierStatus?.webhookUrl || ''}
+                          onBlur={(e) => {
+                            if (e.target.value !== (zapierStatus?.webhookUrl || '')) {
+                              handleZapierAction('update', { webhookUrl: e.target.value, enabled: true })
+                            }
+                          }}
+                          placeholder="https://hooks.zapier.com/..."
+                          className="flex-1 px-2 py-1.5 bg-white border border-orange-200 rounded-lg text-[10px] focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none"
+                        />
+                        {zapierStatus?.webhookUrl && (
+                          <button
+                             onClick={() => handleZapierAction('disconnect')}
+                             className="px-2 py-1.5 text-xs text-red-500 hover:bg-red-50 rounded-lg transition-colors font-bold"
+                             title="Clear"
+                          >
+                             ×
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-[9px] text-gray-400 px-1 leading-tight">Paste your Zapier 'Catch Hook' URL here.</p>
+                    </div>
                   </div>
                 </div>
               </div>

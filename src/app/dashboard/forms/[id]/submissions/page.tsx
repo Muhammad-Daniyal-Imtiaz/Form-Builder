@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use } from 'react'
 import Link from 'next/link'
-import { FileSpreadsheet, Download, ExternalLink, ArrowLeft, Loader2, Check } from 'lucide-react'
+import { FileSpreadsheet, Download, ExternalLink, ArrowLeft, Loader2, Check, Zap } from 'lucide-react'
 
 export default function SubmissionsPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params)
@@ -11,7 +11,9 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [sheetStatus, setSheetStatus] = useState<any>(null)
+  const [zapierStatus, setZapierStatus] = useState<any>(null)
   const [syncing, setSyncing] = useState(false)
+  const [zapSyncing, setZapSyncing] = useState(false)
 
   useEffect(() => {
     fetchData()
@@ -34,10 +36,19 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
       setSubmissions(subsData)
       
       // Fetch integration status
-      const intRes = await fetch(`/api/forms/${resolvedParams.id}/integrations/google-sheets`)
+      const [intRes, zapRes] = await Promise.all([
+        fetch(`/api/forms/${resolvedParams.id}/integrations/google-sheets`),
+        fetch(`/api/forms/${resolvedParams.id}/integrations/zapier`)
+      ])
+      
       if (intRes.ok) {
         const intData = await intRes.json()
         setSheetStatus(intData)
+      }
+
+      if (zapRes.ok) {
+        const zapData = await zapRes.json()
+        setZapierStatus(zapData)
       }
     } catch (err: any) {
       setError(err.message)
@@ -74,6 +85,33 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
       alert('An error occurred during sync.')
     } finally {
       setSyncing(false)
+    }
+  }
+
+  const handleZapierSync = async () => {
+    if (!zapierStatus?.webhookUrl) return
+    if (!confirm(`This will send all ${submissions.length} submissions to your Zapier Webhook. Continue?`)) return
+
+    setZapSyncing(true)
+    try {
+      const resp = await fetch(`/api/forms/${resolvedParams.id}/integrations/zapier`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'sync-existing' })
+      })
+      
+      const data = await resp.json()
+      
+      if (resp.ok) {
+        alert(data.message || `Successfully sent ${data.count} entries to Zapier!`)
+      } else {
+        alert(data.error || 'Failed to sync. Please check your Zapier webhook.')
+      }
+    } catch (err) {
+      console.error('Zapier sync failed:', err)
+      alert('An error occurred during sync.')
+    } finally {
+      setZapSyncing(false)
     }
   }
 
@@ -168,6 +206,21 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
                   <FileSpreadsheet className="w-4 h-4" />
                 )}
                 {syncing ? 'Syncing...' : 'Sync to Google Sheets'}
+              </button>
+            )}
+
+            {zapierStatus?.webhookUrl && (
+              <button
+                onClick={handleZapierSync}
+                disabled={zapSyncing || submissions.length === 0}
+                className="bg-orange-600 text-white px-4 py-2 rounded-lg font-bold shadow-sm hover:bg-orange-700 transition-all text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {zapSyncing ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Zap className="w-4 h-4 fill-current" />
+                )}
+                {zapSyncing ? 'Sending...' : 'Sync to Zapier'}
               </button>
             )}
             <Link

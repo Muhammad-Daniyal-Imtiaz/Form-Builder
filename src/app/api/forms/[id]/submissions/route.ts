@@ -108,53 +108,74 @@ export async function POST(
       }
     }
 
-    // 🚀 GOOGLE SHEETS SYNC
+    // 🚀 INTEGRATIONS SYNC (GOOGLE SHEETS & ZAPIER)
     const admin = await createAdminClient();
     const { data: formConfig, error: configError } = await admin
       .from('forms')
-      .select('user_id, google_sheet_id, google_sheet_enabled, google_sheet_name')
+      .select('user_id, google_sheet_id, google_sheet_enabled, google_sheet_name, zapier_webhook_url, zapier_enabled')
       .eq('id', id)
       .single();
 
-    if (!configError && formConfig?.google_sheet_enabled && formConfig?.google_sheet_id) {
-      try {
-        const { getGoogleAccessToken, appendToGoogleSheet, getSheetValues } = await import('@/lib/google-sheets');
-        const accessToken = await getGoogleAccessToken(formConfig.user_id);
-        
-        if (accessToken) {
-          // Fetch fields for headers and data mapping
-          const { data: fields } = await admin.from('form_fields').select('id, label').eq('form_id', id).order('order');
+    if (!configError && formConfig) {
+      // 1. GOOGLE SHEETS
+      if (formConfig.google_sheet_enabled && formConfig.google_sheet_id) {
+        try {
+          const { getGoogleAccessToken, appendToGoogleSheet, getSheetValues } = await import('@/lib/google-sheets');
+          const accessToken = await getGoogleAccessToken(formConfig.user_id);
           
-          const existingValues = await getSheetValues(accessToken, formConfig.google_sheet_id, `${formConfig.google_sheet_name || 'Sheet1'}!A1:Z1`);
-          const payloadRows = [];
-          
-          if (existingValues.length === 0) {
-            const fieldLabels = fields?.map(f => f.label) || [];
-            payloadRows.push(['Submission Date', ...fieldLabels]);
-          }
+          if (accessToken) {
+            const { data: fields } = await admin.from('form_fields').select('id, label').eq('form_id', id).order('order');
+            const existingValues = await getSheetValues(accessToken, formConfig.google_sheet_id, `${formConfig.google_sheet_name || 'Sheet1'}!A1:Z1`);
+            const payloadRows = [];
+            
+            if (existingValues.length === 0) {
+              const fieldLabels = fields?.map(f => f.label) || [];
+              payloadRows.push(['Submission Date', ...fieldLabels]);
+            }
 
-          // Prepare row values
-          const rowValues = [new Date().toLocaleString()];
-          fields?.forEach(f => {
-            let val = data[f.id] || data[f.label] || '';
-            if (Array.isArray(val)) val = val.join(', ');
-            rowValues.push(String(val));
-          });
-          payloadRows.push(rowValues);
-          
-          const success = await appendToGoogleSheet(
-            accessToken, 
-            formConfig.google_sheet_id, 
-            formConfig.google_sheet_name || 'Sheet1', 
-            payloadRows
-          );
+            const rowValues = [new Date().toLocaleString()];
+            fields?.forEach(f => {
+              let val = data[f.id] || data[f.label] || '';
+              if (Array.isArray(val)) val = val.join(', ');
+              rowValues.push(String(val));
+            });
+            payloadRows.push(rowValues);
+            
+            const success = await appendToGoogleSheet(
+              accessToken, 
+              formConfig.google_sheet_id, 
+              formConfig.google_sheet_name || 'Sheet1', 
+              payloadRows
+            );
 
-          if (success) {
-            await admin.from('submissions').update({ google_synced: true }).eq('id', submission.id);
+            if (success) {
+              await admin.from('submissions').update({ google_synced: true }).eq('id', submission.id);
+            }
           }
+        } catch (err) {
+          console.error('failed google sync:', err);
         }
-      } catch (sheetErr) {
-        console.error('Failed to sync to Google Sheets:', sheetErr);
+      }
+
+      // 2. ZAPIER
+      if (formConfig.zapier_enabled && formConfig.zapier_webhook_url) {
+        try {
+          const zapResp = await fetch(formConfig.zapier_webhook_url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              id: submission.id,
+              submitted_at: submission.submitted_at,
+              ...data
+            })
+          });
+
+          if (zapResp.ok) {
+            await admin.from('submissions').update({ zapier_synced: true }).eq('id', submission.id);
+          }
+        } catch (err) {
+          console.error('failed zapier sync:', err);
+        }
       }
     }
 

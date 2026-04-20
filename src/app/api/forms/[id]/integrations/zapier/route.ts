@@ -1,0 +1,148 @@
+import { createClient, createAdminClient } from '@/utils/supabase/server';
+import { NextResponse } from 'next/server';
+
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const id = (await params).id;
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { data: form, error: formError } = await supabase
+      .from('forms')
+      .select('zapier_webhook_url, zapier_enabled')
+      .eq('id', id)
+      .single();
+
+    if (formError) throw formError;
+
+    return NextResponse.json({
+      webhookUrl: form?.zapier_webhook_url,
+      isEnabled: form?.zapier_enabled
+    });
+  } catch (err) {
+    console.error('Zapier GET error:', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const id = (await params).id;
+    const body = await request.json();
+    const { action } = body;
+
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // UPDATE CONFIG
+    if (action === 'update') {
+      const { webhookUrl, enabled } = body;
+      const { error } = await supabase
+        .from('forms')
+        .update({ 
+          zapier_webhook_url: webhookUrl, 
+          zapier_enabled: enabled 
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+      return NextResponse.json({ success: true });
+    }
+
+    // DISCONNECT
+    if (action === 'disconnect') {
+      const { error } = await supabase
+        .from('forms')
+        .update({ 
+          zapier_webhook_url: null, 
+          zapier_enabled: false 
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+      return NextResponse.json({ success: true });
+    }
+
+    // BULK SYNC
+    if (action === 'sync-existing') {
+        const { data: form } = await supabase
+          .from('forms')
+          .select('zapier_webhook_url, zapier_enabled')
+          .eq('id', id)
+          .single();
+  
+        if (!form?.zapier_webhook_url) {
+            return NextResponse.json({ error: 'Webhook URL not configured' }, { status: 400 });
+        }
+
+        // Get unsynced submissions
+        const { data: submissions } = await supabase
+          .from('submissions')
+          .select('*')
+          .eq('form_id', id)
+          .eq('zapier_synced', false)
+          .order('submitted_at');
+
+        if (!submissions || submissions.length === 0) {
+            return NextResponse.json({ success: true, count: 0, message: 'All data already synced!' });
+        }
+
+        // Send to Zapier
+        // Zapier webhooks usually accept one object at a time or an array. 
+        // We'll send them one by one for safety or in a small batch if possible.
+        // For simplicity, we'll send a single array if Zapier supports it, 
+        // or we can loop. Most Zapier Catch Hooks expect individual objects.
+        
+        const results = await Promise.all(submissions.map(async (sub) => {
+            try {
+                const response = await fetch(form.zapier_webhook_url!, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        id: sub.id,
+                        submitted_at: sub.submitted_at,
+                        ...sub.data
+                    })
+                });
+                return response.ok;
+            } catch (err) {
+                console.error('Zapier sync failed for sub:', sub.id, err);
+                return false;
+            }
+        }));
+
+        const successCount = results.filter(Boolean).length;
+        
+        if (successCount > 0) {
+            const syncedIds = submissions.filter((_, i) => results[i]).map(s => s.id);
+            const admin = await createAdminClient();
+            await admin.from('submissions').update({ zapier_synced: true }).in('id', syncedIds);
+        }
+
+        return NextResponse.json({ 
+            success: successCount > 0, 
+            count: successCount,
+            message: `Successfully sent ${successCount} entries to Zapier.`
+        });
+    }
+
+    return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
+  } catch (err) {
+    console.error('Zapier POST error:', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
