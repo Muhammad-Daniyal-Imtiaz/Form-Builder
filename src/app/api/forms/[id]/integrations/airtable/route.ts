@@ -1,5 +1,6 @@
 import { createClient, createAdminClient } from '@/utils/supabase/server';
 import { NextResponse } from 'next/server';
+import { encrypt, decrypt } from '@/utils/encryption';
 
 export async function GET(
   request: Request,
@@ -23,7 +24,7 @@ export async function GET(
     if (formError) throw formError;
 
     return NextResponse.json({
-      apiKey: form?.airtable_api_key,
+      apiKey: form?.airtable_api_key ? '********' : null,
       baseId: form?.airtable_base_id,
       tableName: form?.airtable_table_name,
       isEnabled: form?.airtable_enabled
@@ -53,14 +54,18 @@ export async function POST(
     // UPDATE CONFIG
     if (action === 'update') {
       const { apiKey, baseId, tableName, enabled } = body;
+      const updateData: any = {
+        airtable_base_id: baseId,
+        airtable_table_name: tableName,
+        airtable_enabled: enabled
+      };
+      if (apiKey && apiKey !== '********') {
+        updateData.airtable_api_key = encrypt(apiKey);
+      }
+
       const { error } = await supabase
         .from('forms')
-        .update({ 
-          airtable_api_key: apiKey, 
-          airtable_base_id: baseId,
-          airtable_table_name: tableName,
-          airtable_enabled: enabled 
-        })
+        .update(updateData)
         .eq('id', id);
 
       if (error) throw error;
@@ -101,8 +106,9 @@ export async function POST(
         if (!fields || fields.length === 0) return NextResponse.json({ error: 'No fields found in form' }, { status: 400 });
 
         // 2. Fetch Airtable Schema (Metadata API)
+        const actualApiKey = decrypt(form.airtable_api_key);
         const airtableHeaders = {
-            'Authorization': `Bearer ${form.airtable_api_key}`,
+            'Authorization': `Bearer ${actualApiKey}`,
             'Content-Type': 'application/json'
         };
 

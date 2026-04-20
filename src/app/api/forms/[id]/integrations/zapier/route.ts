@@ -1,5 +1,6 @@
 import { createClient, createAdminClient } from '@/utils/supabase/server';
 import { NextResponse } from 'next/server';
+import { encrypt, decrypt } from '@/utils/encryption';
 
 export async function GET(
   request: Request,
@@ -23,7 +24,7 @@ export async function GET(
     if (formError) throw formError;
 
     return NextResponse.json({
-      webhookUrl: form?.zapier_webhook_url,
+      webhookUrl: form?.zapier_webhook_url ? '********' : null,
       isEnabled: form?.zapier_enabled
     });
   } catch (err) {
@@ -51,12 +52,16 @@ export async function POST(
     // UPDATE CONFIG
     if (action === 'update') {
       const { webhookUrl, enabled } = body;
+      const updateData: any = {
+          zapier_enabled: enabled 
+      };
+      if (webhookUrl && webhookUrl !== '********') {
+          updateData.zapier_webhook_url = encrypt(webhookUrl);
+      }
+
       const { error } = await supabase
         .from('forms')
-        .update({ 
-          zapier_webhook_url: webhookUrl, 
-          zapier_enabled: enabled 
-        })
+        .update(updateData)
         .eq('id', id);
 
       if (error) throw error;
@@ -123,7 +128,8 @@ export async function POST(
                     });
                 }
 
-                const response = await fetch(form.zapier_webhook_url!, {
+                const actualWebhookUrl = decrypt(form.zapier_webhook_url!);
+                const response = await fetch(actualWebhookUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -189,7 +195,8 @@ export async function POST(
             });
         }
 
-        const response = await fetch(form.zapier_webhook_url, {
+        const actualWebhookUrl = decrypt(form.zapier_webhook_url);
+        const response = await fetch(actualWebhookUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

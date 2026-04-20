@@ -1,7 +1,7 @@
 import { createClient, createAdminClient } from '@/utils/supabase/server'
 import { NextResponse } from 'next/server'
 import nodemailer from 'nodemailer'
-
+import { decrypt } from '@/utils/encryption'
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -183,7 +183,8 @@ export async function POST(
             });
           }
 
-          const zapResp = await fetch(formConfig.zapier_webhook_url, {
+          const webhookUrl = decrypt(formConfig.zapier_webhook_url);
+          const zapResp = await fetch(webhookUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -206,6 +207,7 @@ export async function POST(
       // 3. AIRTABLE
       if (formConfig.airtable_enabled && formConfig.airtable_api_key && formConfig.airtable_base_id) {
         try {
+          const airtableApiKey = decrypt(formConfig.airtable_api_key);
           const { data: fields } = await adminClient.from('form_fields').select('id, label').eq('form_id', id).order('order');
           
           if (fields) {
@@ -224,7 +226,7 @@ export async function POST(
             const airtableResp = await fetch(`https://api.airtable.com/v0/${formConfig.airtable_base_id}/${encodeURIComponent(formConfig.airtable_table_name || 'Submissions')}`, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${formConfig.airtable_api_key}`,
+                    'Authorization': `Bearer ${airtableApiKey}`,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({ records: [{ fields: mappedFields }] })
@@ -241,6 +243,7 @@ export async function POST(
 
       // 4. SLACK
       if (formConfig.slack_enabled && formConfig.slack_bot_token && formConfig.slack_channel_id) {
+        const botToken = decrypt(formConfig.slack_bot_token);
         console.log(`[Slack] Attempting send to channel: ${formConfig.slack_channel_id}`);
         try {
           const { data: fields } = await adminClient.from('form_fields').select('id, label, type').eq('form_id', id).order('order');
@@ -306,7 +309,7 @@ export async function POST(
             let slackResp = await fetch('https://slack.com/api/chat.postMessage', {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${formConfig.slack_bot_token}`,
+                    'Authorization': `Bearer ${botToken}`,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
@@ -323,7 +326,7 @@ export async function POST(
                const joinResp = await fetch('https://slack.com/api/conversations.join', {
                    method: 'POST',
                    headers: { 
-                       'Authorization': `Bearer ${formConfig.slack_bot_token}`,
+                       'Authorization': `Bearer ${botToken}`,
                        'Content-Type': 'application/json'
                    },
                    body: JSON.stringify({ channel: formConfig.slack_channel_id })
@@ -341,7 +344,7 @@ export async function POST(
                slackResp = await fetch('https://slack.com/api/chat.postMessage', {
                    method: 'POST',
                    headers: {
-                       'Authorization': `Bearer ${formConfig.slack_bot_token}`,
+                       'Authorization': `Bearer ${botToken}`,
                        'Content-Type': 'application/json'
                    },
                    body: JSON.stringify({
@@ -365,6 +368,7 @@ export async function POST(
 
       // 5. EMAIL NOTIFICATIONS
       if (formConfig.email_enabled && formConfig.notification_email && formConfig.email_app_password) {
+        const appPassword = decrypt(formConfig.email_app_password);
         console.log(`[Email] Attempting to send notification to: ${formConfig.email_to_list || formConfig.notification_email}`);
         try {
           const { data: fields } = await adminClient.from('form_fields').select('id, label, type').eq('form_id', id).order('order');
@@ -376,7 +380,7 @@ export async function POST(
               secure: formConfig.email_secure ?? true,
               auth: {
                 user: formConfig.notification_email,
-                pass: formConfig.email_app_password,
+                pass: appPassword,
               },
             });
 

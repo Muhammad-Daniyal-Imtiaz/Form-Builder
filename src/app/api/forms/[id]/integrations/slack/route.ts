@@ -1,5 +1,6 @@
 import { createClient, createAdminClient } from '@/utils/supabase/server';
 import { NextResponse } from 'next/server';
+import { encrypt, decrypt } from '@/utils/encryption';
 
 export async function GET(
   request: Request,
@@ -25,8 +26,9 @@ export async function GET(
     let channels = [];
     if (form?.slack_bot_token) {
         try {
+            const actualToken = decrypt(form.slack_bot_token);
             const slackResp = await fetch('https://slack.com/api/conversations.list?types=public_channel', {
-                headers: { 'Authorization': `Bearer ${form.slack_bot_token}` }
+                headers: { 'Authorization': `Bearer ${actualToken}` }
             });
             const slackData = await slackResp.json();
             if (slackData.ok) {
@@ -42,7 +44,7 @@ export async function GET(
     }
 
     return NextResponse.json({
-      botToken: form?.slack_bot_token,
+      botToken: form?.slack_bot_token ? '********' : null,
       channelId: form?.slack_channel_id,
       channelName: form?.slack_channel_name,
       isEnabled: form?.slack_enabled,
@@ -73,14 +75,18 @@ export async function POST(
     // UPDATE CONFIG
     if (action === 'update') {
       const { botToken, channelId, channelName, enabled } = body;
+      const updateData: any = {
+        slack_channel_id: channelId,
+        slack_channel_name: channelName,
+        slack_enabled: enabled 
+      };
+      if (botToken && botToken !== '********') {
+        updateData.slack_bot_token = encrypt(botToken);
+      }
+
       const { error } = await supabase
         .from('forms')
-        .update({ 
-          slack_bot_token: botToken, 
-          slack_channel_id: channelId,
-          slack_channel_name: channelName,
-          slack_enabled: enabled 
-        })
+        .update(updateData)
         .eq('id', id);
 
       if (error) throw error;
@@ -90,10 +96,18 @@ export async function POST(
     // CREATE CHANNEL
     if (action === 'create-channel') {
         const { botToken, name } = body;
+        let actualToken = botToken;
+        if (botToken === '********') {
+            const { data: dbForm } = await supabase.from('forms').select('slack_bot_token').eq('id', id).single();
+            if (dbForm?.slack_bot_token) {
+                actualToken = decrypt(dbForm.slack_bot_token);
+            }
+        }
+
         const slackResp = await fetch('https://slack.com/api/conversations.create', {
             method: 'POST',
             headers: { 
-                'Authorization': `Bearer ${botToken}`,
+                'Authorization': `Bearer ${actualToken}`,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({ name })
@@ -111,7 +125,7 @@ export async function POST(
         await fetch('https://slack.com/api/conversations.join', {
             method: 'POST',
             headers: { 
-                'Authorization': `Bearer ${botToken}`,
+                'Authorization': `Bearer ${actualToken}`,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({ channel: channelId })
