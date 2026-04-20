@@ -83,18 +83,27 @@ export async function POST(
 
     // 2. TEST EMAIL
     if (action === 'test-email') {
-      const { email, appPassword, host, port, secure } = body;
+      const { email, appPassword, host, port, secure, toList } = body;
 
-      // Get password from DB if masked
+      // Get password (and toList if not sent) from DB when masked
       let actualPassword = appPassword;
-      if (appPassword === '********') {
-        const { data: form } = await supabase.from('forms').select('email_app_password').eq('id', id).single();
-        actualPassword = form?.email_app_password;
+      let actualToList = toList;
+      if (appPassword === '********' || !actualToList) {
+        const { data: form } = await supabase
+          .from('forms')
+          .select('email_app_password, email_to_list')
+          .eq('id', id)
+          .single();
+        if (appPassword === '********') actualPassword = form?.email_app_password;
+        if (!actualToList) actualToList = form?.email_to_list;
       }
 
       if (!actualPassword) {
         return NextResponse.json({ error: 'App password is required for test' }, { status: 400 });
       }
+
+      // Resolve recipients: use toList if set, otherwise fall back to sender
+      const recipients = actualToList?.trim() || email;
 
       const transporter = nodemailer.createTransport({
         host: host || 'smtp.gmail.com',
@@ -109,14 +118,14 @@ export async function POST(
       try {
         await transporter.verify();
         await transporter.sendMail({
-          from: email,
-          to: email, // Send to self as test
+          from: `"Form Notifications" <${email}>`,
+          to: recipients,
           subject: '🛎️ Form Notification Test Email',
           text: 'Success! Your form email notifications are correctly configured.',
           html: '<h1>Success!</h1><p>Your form email notifications are correctly configured.</p>'
         });
 
-        return NextResponse.json({ success: true, message: 'Test email sent successfully!' });
+        return NextResponse.json({ success: true, message: `Test email sent to ${recipients}` });
       } catch (smErr: any) {
         return NextResponse.json({ error: `SMTP Error: ${smErr.message}` }, { status: 400 });
       }
