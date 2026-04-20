@@ -104,10 +104,33 @@ export async function POST(
             return NextResponse.json({ error: `Slack Error: ${slackData.error}` }, { status: 400 });
         }
 
+        const channelId = slackData.channel.id;
+        const channelName = slackData.channel.name;
+
+        // Auto-join the channel to ensure we can post
+        await fetch('https://slack.com/api/conversations.join', {
+            method: 'POST',
+            headers: { 
+                'Authorization': `Bearer ${botToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ channel: channelId })
+        });
+
+        // Save to database immediately
+        await supabase
+          .from('forms')
+          .update({ 
+            slack_channel_id: channelId,
+            slack_channel_name: channelName,
+            slack_enabled: true 
+          })
+          .eq('id', id);
+
         return NextResponse.json({ 
             success: true, 
-            channelId: slackData.channel.id,
-            channelName: slackData.channel.name
+            channelId,
+            channelName
         });
     }
 

@@ -109,12 +109,15 @@ export async function POST(
     }
 
     // 🚀 INTEGRATIONS SYNC (GOOGLE SHEETS & ZAPIER)
-    const admin = await createAdminClient();
-    const { data: formConfig, error: configError } = await admin
+    const { data: formConfig, error: configError } = await adminClient
       .from('forms')
-      .select('user_id, google_sheet_id, google_sheet_enabled, google_sheet_name, zapier_webhook_url, zapier_enabled, airtable_api_key, airtable_base_id, airtable_table_name, airtable_enabled, slack_bot_token, slack_channel_id, slack_enabled')
+      .select('title, user_id, google_sheet_id, google_sheet_enabled, google_sheet_name, zapier_webhook_url, zapier_enabled, airtable_api_key, airtable_base_id, airtable_table_name, airtable_enabled, slack_bot_token, slack_channel_id, slack_enabled')
       .eq('id', id)
       .single();
+
+    if (configError) {
+       console.error('[Integrations] Config fetch error:', configError.message);
+    }
 
     if (!configError && formConfig) {
       // 1. GOOGLE SHEETS
@@ -124,7 +127,7 @@ export async function POST(
           const accessToken = await getGoogleAccessToken(formConfig.user_id);
           
           if (accessToken) {
-            const { data: fields } = await admin.from('form_fields').select('id, label').eq('form_id', id).order('order');
+            const { data: fields } = await adminClient.from('form_fields').select('id, label').eq('form_id', id).order('order');
             const existingValues = await getSheetValues(accessToken, formConfig.google_sheet_id, `${formConfig.google_sheet_name || 'Sheet1'}!A1:Z1`);
             const payloadRows = [];
             
@@ -149,7 +152,7 @@ export async function POST(
             );
 
             if (success) {
-              await admin.from('submissions').update({ google_synced: true }).eq('id', submission.id);
+              await adminClient.from('submissions').update({ google_synced: true }).eq('id', submission.id);
             }
           }
         } catch (err) {
@@ -161,7 +164,7 @@ export async function POST(
       if (formConfig.zapier_enabled && formConfig.zapier_webhook_url) {
         try {
           // Fetch fields to map IDs to labels
-          const { data: fields } = await admin.from('form_fields').select('id, label').eq('form_id', id).order('order');
+          const { data: fields } = await adminClient.from('form_fields').select('id, label').eq('form_id', id).order('order');
           
           const labelData: Record<string, any> = {};
           if (fields) {
@@ -192,7 +195,7 @@ export async function POST(
           });
 
           if (zapResp.ok) {
-            await admin.from('submissions').update({ zapier_synced: true }).eq('id', submission.id);
+            await adminClient.from('submissions').update({ zapier_synced: true }).eq('id', submission.id);
           }
         } catch (err) {
           console.error('failed zapier sync:', err);
@@ -202,7 +205,7 @@ export async function POST(
       // 3. AIRTABLE
       if (formConfig.airtable_enabled && formConfig.airtable_api_key && formConfig.airtable_base_id) {
         try {
-          const { data: fields } = await admin.from('form_fields').select('id, label').eq('form_id', id).order('order');
+          const { data: fields } = await adminClient.from('form_fields').select('id, label').eq('form_id', id).order('order');
           
           if (fields) {
             const mappedFields: any = {
@@ -227,7 +230,7 @@ export async function POST(
             });
 
             if (airtableResp.ok) {
-              await admin.from('submissions').update({ airtable_synced: true }).eq('id', submission.id);
+              await adminClient.from('submissions').update({ airtable_synced: true }).eq('id', submission.id);
             }
           }
         } catch (err) {
@@ -237,8 +240,9 @@ export async function POST(
 
       // 4. SLACK
       if (formConfig.slack_enabled && formConfig.slack_bot_token && formConfig.slack_channel_id) {
+        console.log(`[Slack] Attempting send to channel: ${formConfig.slack_channel_id}`);
         try {
-          const { data: fields } = await admin.from('form_fields').select('id, label').eq('form_id', id).order('order');
+          const { data: fields } = await adminClient.from('form_fields').select('id, label, type').eq('form_id', id).order('order');
           
           if (fields) {
             const blocks: any[] = [
@@ -250,7 +254,7 @@ export async function POST(
                     type: "section",
                     text: {
                         type: "mrkdwn",
-                        text: `*Form:* ${formConfig.google_sheet_name || 'My Form'}\n*Date:* ${new Date(submission.submitted_at).toLocaleString()}`
+                        text: `*Form:* ${formConfig.title || 'My Form'}\n*Date:* ${new Date(submission.submitted_at).toLocaleString()}`
                     }
                 },
                 { type: "divider" }
@@ -259,10 +263,28 @@ export async function POST(
             const formFields: any[] = [];
             fields.forEach(f => {
                 let val = data[f.id] || data[f.label] || '';
-                if (Array.isArray(val)) val = val.join(', ');
+                
+                // Format values for Slack
+                let formattedVal = '';
+                if (Array.isArray(val)) {
+                    if (['file', 'multifile'].includes(f.type)) {
+                        formattedVal = val.map(file => `<${file.url}|${file.fileName || 'View File'}>`).join(', ');
+                    } else {
+                        formattedVal = val.join(', ');
+                    }
+                } else if (typeof val === 'object' && val !== null) {
+                    if (val.url) {
+                        formattedVal = `<${val.url}|${val.fileName || 'View File'}>`;
+                    } else {
+                        formattedVal = JSON.stringify(val);
+                    }
+                } else {
+                    formattedVal = String(val);
+                }
+
                 formFields.push({
                     type: "mrkdwn",
-                    text: `*${f.label}:*\n${String(val) || '_(empty)_'}`
+                    text: `*${f.label}:*\n${formattedVal || '_(empty)_'}`
                 });
             });
 
@@ -280,7 +302,7 @@ export async function POST(
                 elements: [{ type: "mrkdwn", text: `Submission ID: \`${submission.id}\`` }]
             });
 
-            await fetch('https://slack.com/api/chat.postMessage', {
+            let slackResp = await fetch('https://slack.com/api/chat.postMessage', {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${formConfig.slack_bot_token}`,
@@ -291,9 +313,52 @@ export async function POST(
                     blocks
                 })
             });
+
+            let slackData = await slackResp.json();
+            
+            // If bot not in channel, try to join and retry once
+            if (!slackData.ok && slackData.error === 'not_in_channel') {
+               console.log('[Slack] Bot not in channel, attempting to join...');
+               const joinResp = await fetch('https://slack.com/api/conversations.join', {
+                   method: 'POST',
+                   headers: { 
+                       'Authorization': `Bearer ${formConfig.slack_bot_token}`,
+                       'Content-Type': 'application/json'
+                   },
+                   body: JSON.stringify({ channel: formConfig.slack_channel_id })
+               });
+               const joinData = await joinResp.json();
+               
+               if (joinData.ok) {
+                   console.log('[Slack] Joined channel successfully, retrying post...');
+               } else {
+                   console.warn('[Slack] Auto-join failed:', joinData.error);
+                   console.warn('[Slack] Tip: Ensure your Slack App has "channels:join" scope.');
+               }
+
+               // Retry post regardless of join success (sometimes join is successful but returns warning)
+               slackResp = await fetch('https://slack.com/api/chat.postMessage', {
+                   method: 'POST',
+                   headers: {
+                       'Authorization': `Bearer ${formConfig.slack_bot_token}`,
+                       'Content-Type': 'application/json'
+                   },
+                   body: JSON.stringify({
+                       channel: formConfig.slack_channel_id,
+                       blocks
+                   })
+               });
+               slackData = await slackResp.json();
+            }
+
+            if (!slackData.ok) {
+               console.error('[Slack] API Error:', slackData.error);
+            } else {
+               console.log('[Slack] Notification sent successfully!');
+            }
           }
         } catch (err) {
-          console.error('failed slack sync:', err);
+          console.error('[Slack] Failed slack sync:', err);
         }
       }
     }
