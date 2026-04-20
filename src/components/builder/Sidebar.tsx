@@ -12,6 +12,19 @@ import { useBuilder } from './BuilderContext'
 import { FieldType, PRESET_THEMES, AVAILABLE_FONTS } from './types'
 import { cn } from '@/utils/cn'
 
+const SlackIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M14.5 10c-.83 0-1.5-.67-1.5-1.5v-5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5z"/>
+    <path d="M20.5 10H19V8.5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
+    <path d="M9.5 14c.83 0 1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5s-1.5-.67-1.5-1.5v-5c0-.83.67-1.5 1.5-1.5z"/>
+    <path d="M3.5 14H5v1.5c0 .83-.67 1.5-1.5 1.5S2 16.33 2 15.5s.67-1.5 1.5-1.5z"/>
+    <path d="M14 14.5c0 .83.67 1.5 1.5 1.5h5c.83 0 1.5-.67 1.5-1.5s-.67-1.5-1.5-1.5h-5c-.83 0-1.5.67-1.5 1.5z"/>
+    <path d="M14 20.5V19h1.5c.83 0 1.5-.67 1.5-1.5s-.67-1.5-1.5-1.5-1.5.67-1.5 1.5v5z"/>
+    <path d="M10 9.5C10 8.67 9.33 8 8.5 8h-5C2.67 8 2 8.67 2 9.5S2.67 11 3.5 11h5c.83 0 1.5-.67 1.5-1.5z"/>
+    <path d="M10 3.5V5H8.5C7.67 5 7 4.33 7 3.5S7.67 2 8.5 2 10 2.67 10 3.5z"/>
+  </svg>
+)
+
 const FIELD_TOOLS: { type: FieldType; label: string; icon: React.ReactNode; desc: string }[] = [
   { type: 'text', label: 'Short Text', icon: <Type className="w-4 h-4" />, desc: 'Simple text input' },
   { type: 'email', label: 'Email Address', icon: <Mail className="w-4 h-4" />, desc: 'Validates email formats' },
@@ -43,6 +56,7 @@ export function Sidebar() {
     isEnabled: boolean;
   } | null>(null)
   const [airtableStatus, setAirtableStatus] = useState<any>(null)
+  const [slackStatus, setSlackStatus] = useState<any>(null)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -53,21 +67,24 @@ export function Sidebar() {
 
   const fetchStatus = async () => {
     try {
-      const [sheetResp, zapierResp, airtableResp] = await Promise.all([
+      const [sheetResp, zapierResp, airtableResp, slackResp] = await Promise.all([
         fetch(`/api/forms/${form.id}/integrations/google-sheets`),
         fetch(`/api/forms/${form.id}/integrations/zapier`),
-        fetch(`/api/forms/${form.id}/integrations/airtable`)
+        fetch(`/api/forms/${form.id}/integrations/airtable`),
+        fetch(`/api/forms/${form.id}/integrations/slack`)
       ])
       
-      const [sheetData, zapierData, airtableData] = await Promise.all([
+      const [sheetData, zapierData, airtableData, slackData] = await Promise.all([
         sheetResp.json(),
         zapierResp.json(),
-        airtableResp.json()
+        airtableResp.json(),
+        slackResp.json()
       ])
       
       setSheetStatus(sheetData)
       setZapierStatus(zapierData)
       setAirtableStatus(airtableData)
+      setSlackStatus(slackData)
     } catch (err) {
       console.error('Failed to fetch integration status:', err)
     }
@@ -133,6 +150,31 @@ export function Sidebar() {
       }
     } catch (err) {
       console.error(`Airtable action ${action} failed:`, err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSlackAction = async (action: string, payload: any = {}) => {
+    setLoading(true)
+    try {
+      const resp = await fetch(`/api/forms/${form.id}/integrations/slack`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, ...payload })
+      })
+      if (resp.ok) {
+        const data = await resp.json()
+        if (action === 'create-channel') {
+          alert(`Success! Channel "#${data.channelName}" created.`)
+        }
+        await fetchStatus()
+      } else {
+        const data = await resp.json()
+        alert(data.error || 'Slack action failed')
+      }
+    } catch (err) {
+      console.error(`Slack action ${action} failed:`, err)
     } finally {
       setLoading(false)
     }
@@ -1060,9 +1102,126 @@ export function Sidebar() {
                     </div>
                   </div>
                 </div>
+
+                {/* SLACK INTEGRATION */}
+                <div className="group/card relative">
+                  <div className={cn(
+                    "relative overflow-hidden p-4 rounded-2xl border transition-all duration-300",
+                    slackStatus?.botToken 
+                      ? "bg-white border-[#4A154B]/20 shadow-sm shadow-[#4A154B]/5" 
+                      : "bg-gray-50 border-gray-100 grayscale hover:grayscale-0 opacity-70 hover:opacity-100"
+                  )}>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2.5">
+                        <div className={cn(
+                          "p-2 rounded-xl transition-colors",
+                          slackStatus?.botToken ? "bg-[#4A154B] text-white" : "bg-gray-200 text-gray-500"
+                        )}>
+                          <SlackIcon className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-bold text-gray-900">Slack</h4>
+                          <p className="text-[10px] text-gray-500 font-medium">Real-time notifications</p>
+                        </div>
+                      </div>
+                      {slackStatus?.botToken && (
+                        <button
+                          onClick={() => handleSlackAction('update', { ...slackStatus, enabled: !slackStatus.isEnabled })}
+                          className={cn(
+                            "relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none",
+                            slackStatus.isEnabled ? "bg-[#4A154B]" : "bg-gray-200"
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              "inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200",
+                              slackStatus.isEnabled ? "translate-x-4" : "translate-x-0"
+                            )}
+                          />
+                        </button>
+                      )}
+                    </div>
+                    
+                    <div className="space-y-2.5">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-tight px-1">Bot User OAuth Token</label>
+                        <input
+                          type="password"
+                          placeholder="xoxb-..."
+                          defaultValue={slackStatus?.botToken || ''}
+                          onBlur={(e) => {
+                            if (e.target.value !== (slackStatus?.botToken || '')) {
+                              handleSlackAction('update', { 
+                                botToken: e.target.value, 
+                                enabled: true 
+                              })
+                            }
+                          }}
+                          className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs focus:ring-2 focus:ring-[#4A154B]/20 focus:border-[#4A154B] outline-none transition-all"
+                        />
+                      </div>
+
+                      {slackStatus?.botToken && (
+                        <>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-tight px-1">Target Channel</label>
+                            <select
+                              value={slackStatus?.channelId || ''}
+                              onChange={(e) => {
+                                const channel = slackStatus.availableChannels.find((c: any) => c.id === e.target.value);
+                                handleSlackAction('update', {
+                                  ...slackStatus,
+                                  channelId: e.target.value,
+                                  channelName: channel?.name || '',
+                                  enabled: true
+                                })
+                              }}
+                              className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs focus:ring-2 focus:ring-[#4A154B]/20 focus:border-[#4A154B] outline-none transition-all"
+                            >
+                              <option value="">Select a channel...</option>
+                              {slackStatus.availableChannels?.map((ch: any) => (
+                                <option key={ch.id} value={ch.id}>#{ch.name}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div className="pt-2 flex flex-col gap-2">
+                             <div className="relative group/create">
+                               <input 
+                                 type="text" 
+                                 placeholder="Create new channel..."
+                                 onKeyDown={(e) => {
+                                   if (e.key === 'Enter') {
+                                     handleSlackAction('create-channel', { 
+                                       botToken: slackStatus.botToken, 
+                                       name: (e.target as HTMLInputElement).value 
+                                     });
+                                     (e.target as HTMLInputElement).value = '';
+                                   }
+                                 }}
+                                 className="w-full pl-3 pr-10 py-1.5 bg-white border border-gray-100 rounded-lg text-[10px] outline-none focus:border-[#4A154B]"
+                               />
+                               <div className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-300 text-[9px] font-bold uppercase">Enter</div>
+                             </div>
+                             
+                             <button
+                               onClick={() => handleSlackAction('disconnect')}
+                               className="text-[10px] font-bold text-red-500 hover:text-red-600 transition-colors pt-1 px-1 text-left"
+                             >
+                               Disconnect Slack
+                             </button>
+                          </div>
+                        </>
+                      )}
+                      
+                      <p className="text-[9px] text-gray-400 px-1 leading-tight mt-1 truncate">
+                        {slackStatus?.botToken ? "Connected. Select or create a channel." : "Get your Bot Token from Slack App settings."}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
-
           </motion.div>
         )}
         

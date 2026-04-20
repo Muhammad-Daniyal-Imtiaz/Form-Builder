@@ -112,7 +112,7 @@ export async function POST(
     const admin = await createAdminClient();
     const { data: formConfig, error: configError } = await admin
       .from('forms')
-      .select('user_id, google_sheet_id, google_sheet_enabled, google_sheet_name, zapier_webhook_url, zapier_enabled, airtable_api_key, airtable_base_id, airtable_table_name, airtable_enabled')
+      .select('user_id, google_sheet_id, google_sheet_enabled, google_sheet_name, zapier_webhook_url, zapier_enabled, airtable_api_key, airtable_base_id, airtable_table_name, airtable_enabled, slack_bot_token, slack_channel_id, slack_enabled')
       .eq('id', id)
       .single();
 
@@ -232,6 +232,68 @@ export async function POST(
           }
         } catch (err) {
           console.error('failed airtable sync:', err);
+        }
+      }
+
+      // 4. SLACK
+      if (formConfig.slack_enabled && formConfig.slack_bot_token && formConfig.slack_channel_id) {
+        try {
+          const { data: fields } = await admin.from('form_fields').select('id, label').eq('form_id', id).order('order');
+          
+          if (fields) {
+            const blocks: any[] = [
+                {
+                    type: "header",
+                    text: { type: "plain_text", text: "🚀 New Form Submission!" }
+                },
+                {
+                    type: "section",
+                    text: {
+                        type: "mrkdwn",
+                        text: `*Form:* ${formConfig.google_sheet_name || 'My Form'}\n*Date:* ${new Date(submission.submitted_at).toLocaleString()}`
+                    }
+                },
+                { type: "divider" }
+            ];
+
+            const formFields: any[] = [];
+            fields.forEach(f => {
+                let val = data[f.id] || data[f.label] || '';
+                if (Array.isArray(val)) val = val.join(', ');
+                formFields.push({
+                    type: "mrkdwn",
+                    text: `*${f.label}:*\n${String(val) || '_(empty)_'}`
+                });
+            });
+
+            // Split into sections of 2 fields each for better look
+            for (let i = 0; i < formFields.length; i += 2) {
+                blocks.push({
+                    type: "section",
+                    fields: formFields.slice(i, i + 2)
+                });
+            }
+
+            blocks.push({ type: "divider" });
+            blocks.push({
+                type: "context",
+                elements: [{ type: "mrkdwn", text: `Submission ID: \`${submission.id}\`` }]
+            });
+
+            await fetch('https://slack.com/api/chat.postMessage', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${formConfig.slack_bot_token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    channel: formConfig.slack_channel_id,
+                    blocks
+                })
+            });
+          }
+        } catch (err) {
+          console.error('failed slack sync:', err);
         }
       }
     }
