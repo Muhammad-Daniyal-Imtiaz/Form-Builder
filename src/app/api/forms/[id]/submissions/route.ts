@@ -112,7 +112,7 @@ export async function POST(
     const admin = await createAdminClient();
     const { data: formConfig, error: configError } = await admin
       .from('forms')
-      .select('user_id, google_sheet_id, google_sheet_enabled, google_sheet_name, zapier_webhook_url, zapier_enabled')
+      .select('user_id, google_sheet_id, google_sheet_enabled, google_sheet_name, zapier_webhook_url, zapier_enabled, airtable_api_key, airtable_base_id, airtable_table_name, airtable_enabled')
       .eq('id', id)
       .single();
 
@@ -196,6 +196,42 @@ export async function POST(
           }
         } catch (err) {
           console.error('failed zapier sync:', err);
+        }
+      }
+
+      // 3. AIRTABLE
+      if (formConfig.airtable_enabled && formConfig.airtable_api_key && formConfig.airtable_base_id) {
+        try {
+          const { data: fields } = await admin.from('form_fields').select('id, label').eq('form_id', id).order('order');
+          
+          if (fields) {
+            const mappedFields: any = {
+                "Submission ID": submission.id,
+                "Submitted At": submission.submitted_at
+            };
+            fields.forEach(f => {
+                let val = data[f.id] || data[f.label] || '';
+                if (Array.isArray(val)) val = val.join(', ');
+                mappedFields[f.label] = String(val);
+            });
+
+            // For real-time, we just try to push to the table name.
+            // If the table doesn't exist, it requires a manual bulk sync or setup to create it.
+            const airtableResp = await fetch(`https://api.airtable.com/v0/${formConfig.airtable_base_id}/${encodeURIComponent(formConfig.airtable_table_name || 'Submissions')}`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${formConfig.airtable_api_key}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ records: [{ fields: mappedFields }] })
+            });
+
+            if (airtableResp.ok) {
+              await admin.from('submissions').update({ airtable_synced: true }).eq('id', submission.id);
+            }
+          }
+        } catch (err) {
+          console.error('failed airtable sync:', err);
         }
       }
     }

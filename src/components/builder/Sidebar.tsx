@@ -42,6 +42,7 @@ export function Sidebar() {
     webhookUrl?: string;
     isEnabled: boolean;
   } | null>(null)
+  const [airtableStatus, setAirtableStatus] = useState<any>(null)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -52,16 +53,21 @@ export function Sidebar() {
 
   const fetchStatus = async () => {
     try {
-      const [sheetResp, zapierResp] = await Promise.all([
+      const [sheetResp, zapierResp, airtableResp] = await Promise.all([
         fetch(`/api/forms/${form.id}/integrations/google-sheets`),
-        fetch(`/api/forms/${form.id}/integrations/zapier`)
+        fetch(`/api/forms/${form.id}/integrations/zapier`),
+        fetch(`/api/forms/${form.id}/integrations/airtable`)
       ])
       
-      const sheetData = await sheetResp.json()
-      const zapierData = await zapierResp.json()
+      const [sheetData, zapierData, airtableData] = await Promise.all([
+        sheetResp.json(),
+        zapierResp.json(),
+        airtableResp.json()
+      ])
       
       setSheetStatus(sheetData)
       setZapierStatus(zapierData)
+      setAirtableStatus(airtableData)
     } catch (err) {
       console.error('Failed to fetch integration status:', err)
     }
@@ -94,10 +100,39 @@ export function Sidebar() {
         body: JSON.stringify({ action, ...payload })
       })
       if (resp.ok) {
+        const data = await resp.json()
+        if (action === 'send-test' || action === 'reset-sync') {
+          alert(data.message)
+        }
         await fetchStatus()
       }
     } catch (err) {
       console.error(`Zapier action ${action} failed:`, err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleAirtableAction = async (action: string, payload: any = {}) => {
+    setLoading(true)
+    try {
+      const resp = await fetch(`/api/forms/${form.id}/integrations/airtable`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, ...payload })
+      })
+      if (resp.ok) {
+        const data = await resp.json()
+        if (action === 'sync-existing') {
+          alert(data.message || 'Sync complete!')
+        }
+        await fetchStatus()
+      } else {
+        const data = await resp.json()
+        alert(data.error || 'Airtable action failed')
+      }
+    } catch (err) {
+      console.error(`Airtable action ${action} failed:`, err)
     } finally {
       setLoading(false)
     }
@@ -874,6 +909,154 @@ export function Sidebar() {
                         )}
                       </div>
                       <p className="text-[9px] text-gray-400 px-1 leading-tight">Paste your Zapier 'Catch Hook' URL here.</p>
+                      
+                      {zapierStatus?.webhookUrl && (
+                        <div className="flex gap-2 pt-1">
+                          <button
+                            onClick={() => handleZapierAction('send-test')}
+                            disabled={loading}
+                            className="flex-1 py-1.5 px-2 bg-orange-600 text-white text-[9px] font-bold rounded hover:bg-orange-700 transition-colors disabled:opacity-50"
+                          >
+                            Send Test Sample
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (confirm('This will mark all past submissions as unsynced locally. Re-syncing will send them again. Continue?')) {
+                                handleZapierAction('reset-sync')
+                              }
+                            }}
+                            disabled={loading}
+                            className="py-1.5 px-2 bg-white border border-gray-200 text-gray-500 text-[9px] font-bold rounded hover:bg-gray-50 transition-colors disabled:opacity-50"
+                          >
+                            Reset Sync
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* AIRTABLE INTEGRATION */}
+                <div className="relative group">
+                  <div className={cn(
+                    "p-4 bg-white border rounded-2xl transition-all duration-300",
+                    airtableStatus?.isEnabled ? "border-blue-200 shadow-sm ring-1 ring-blue-50" : "border-gray-100 hover:border-blue-200"
+                  )}>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center border border-blue-100">
+                          <Database className="w-5 h-5 text-blue-600" />
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-bold text-gray-900">Airtable</h4>
+                          <p className="text-[10px] text-gray-400 font-medium tracking-tight">Zero-Mapping Table Sync</p>
+                        </div>
+                      </div>
+                      
+                      {airtableStatus?.apiKey && (
+                        <button
+                          onClick={() => handleAirtableAction('update', { 
+                            apiKey: airtableStatus.apiKey,
+                            baseId: airtableStatus.baseId,
+                            tableName: airtableStatus.tableName,
+                            enabled: !airtableStatus.isEnabled 
+                          })}
+                          className={cn(
+                            "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
+                            airtableStatus.isEnabled ? "bg-blue-600" : "bg-gray-200"
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              "inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200",
+                              airtableStatus.isEnabled ? "translate-x-4" : "translate-x-0"
+                            )}
+                          />
+                        </button>
+                      )}
+                    </div>
+                    
+                    <div className="space-y-2.5">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-tight px-1">Personal Access Token</label>
+                        <input
+                          type="password"
+                          placeholder="pat..."
+                          defaultValue={airtableStatus?.apiKey || ''}
+                          onBlur={(e) => {
+                            if (e.target.value !== (airtableStatus?.apiKey || '')) {
+                              handleAirtableAction('update', { 
+                                apiKey: e.target.value, 
+                                baseId: airtableStatus?.baseId, 
+                                tableName: airtableStatus?.tableName || 'Submissions',
+                                enabled: true 
+                              })
+                            }
+                          }}
+                          className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-gray-500 uppercase tracking-tight px-1">Base ID</label>
+                          <input
+                            type="text"
+                            placeholder="app..."
+                            defaultValue={airtableStatus?.baseId || ''}
+                            onBlur={(e) => {
+                              if (e.target.value !== (airtableStatus?.baseId || '')) {
+                                handleAirtableAction('update', { 
+                                  apiKey: airtableStatus?.apiKey, 
+                                  baseId: e.target.value, 
+                                  tableName: airtableStatus?.tableName || 'Submissions',
+                                  enabled: true 
+                                })
+                              }
+                            }}
+                            className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-gray-500 uppercase tracking-tight px-1">Table Name</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. Leads"
+                            defaultValue={airtableStatus?.tableName || ''}
+                            onBlur={(e) => {
+                              if (e.target.value !== (airtableStatus?.tableName || '')) {
+                                handleAirtableAction('update', { 
+                                  apiKey: airtableStatus?.apiKey, 
+                                  baseId: airtableStatus?.baseId, 
+                                  tableName: e.target.value, 
+                                  enabled: true 
+                                })
+                              }
+                            }}
+                            className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                          />
+                        </div>
+                      </div>
+
+                      {airtableStatus?.apiKey && (
+                        <div className="flex gap-2 pt-1">
+                          <button
+                            onClick={() => handleAirtableAction('sync-existing')}
+                            disabled={loading}
+                            className="flex-1 py-2 bg-blue-600 text-white text-[10px] font-bold rounded-xl hover:bg-blue-700 transition-all shadow-sm shadow-blue-200 disabled:opacity-50"
+                          >
+                            Auto-Create & Sync
+                          </button>
+                          <button
+                            onClick={() => handleAirtableAction('disconnect')}
+                            disabled={loading}
+                            className="px-3 py-2 bg-gray-50 text-gray-500 text-[10px] font-bold rounded-xl hover:bg-red-50 hover:text-red-500 transition-all disabled:opacity-50"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      )}
+                      <p className="text-[9px] text-gray-400 px-1 leading-tight mt-1">Provide your PAT and Base ID. We'll automatically create the table and columns for you.</p>
                     </div>
                   </div>
                 </div>

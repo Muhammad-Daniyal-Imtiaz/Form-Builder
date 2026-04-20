@@ -155,7 +155,60 @@ export async function POST(
             message: `Successfully sent ${successCount} entries to Zapier.`
         });
     }
+    // RESET SYNC
+    if (action === 'reset-sync') {
+        const admin = await createAdminClient();
+        const { error } = await admin
+          .from('submissions')
+          .update({ zapier_synced: false })
+          .eq('form_id', id);
 
+        if (error) throw error;
+        return NextResponse.json({ success: true, message: 'Sync status reset successfully.' });
+    }
+
+    // SEND TEST SAMPLE
+    if (action === 'send-test') {
+        const admin = await createAdminClient();
+        const { data: form } = await admin
+          .from('forms')
+          .select('zapier_webhook_url, google_sheet_name')
+          .eq('id', id)
+          .single();
+
+        if (!form?.zapier_webhook_url) {
+            return NextResponse.json({ error: 'Webhook URL not configured' }, { status: 400 });
+        }
+
+        const { data: fields } = await admin.from('form_fields').select('id, label').eq('form_id', id).order('order');
+        
+        const testData: Record<string, any> = {};
+        if (fields) {
+            fields.forEach(f => {
+                testData[f.label] = `Sample ${f.label} data`;
+            });
+        }
+
+        const response = await fetch(form.zapier_webhook_url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                submission_id: 'test_sample_id',
+                form_id: id,
+                form_name: form.google_sheet_name || 'Test Form',
+                submitted_at: new Date().toISOString(),
+                is_test: true,
+                message: "The webhook is working perfectly!",
+                ...testData
+            })
+        });
+
+        if (!response.ok) {
+            return NextResponse.json({ error: 'Failed to send test to Zapier' }, { status: 500 });
+        }
+
+        return NextResponse.json({ success: true, message: 'Test sample sent to Zapier!' });
+    }
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
   } catch (err) {
     console.error('Zapier POST error:', err);

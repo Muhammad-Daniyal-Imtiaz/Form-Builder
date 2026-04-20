@@ -12,8 +12,10 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
   const [error, setError] = useState('')
   const [sheetStatus, setSheetStatus] = useState<any>(null)
   const [zapierStatus, setZapierStatus] = useState<any>(null)
+  const [airtableStatus, setAirtableStatus] = useState<any>(null)
   const [syncing, setSyncing] = useState(false)
   const [zapSyncing, setZapSyncing] = useState(false)
+  const [airSyncing, setAirSyncing] = useState(false)
 
   useEffect(() => {
     fetchData()
@@ -36,9 +38,10 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
       setSubmissions(subsData)
       
       // Fetch integration status
-      const [intRes, zapRes] = await Promise.all([
+      const [intRes, zapRes, airRes] = await Promise.all([
         fetch(`/api/forms/${resolvedParams.id}/integrations/google-sheets`),
-        fetch(`/api/forms/${resolvedParams.id}/integrations/zapier`)
+        fetch(`/api/forms/${resolvedParams.id}/integrations/zapier`),
+        fetch(`/api/forms/${resolvedParams.id}/integrations/airtable`)
       ])
       
       if (intRes.ok) {
@@ -49,6 +52,11 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
       if (zapRes.ok) {
         const zapData = await zapRes.json()
         setZapierStatus(zapData)
+      }
+
+      if (airRes.ok) {
+        const airData = await airRes.json()
+        setAirtableStatus(airData)
       }
     } catch (err: any) {
       setError(err.message)
@@ -103,7 +111,21 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
       const data = await resp.json()
       
       if (resp.ok) {
-        alert(data.message || `Successfully sent ${data.count} entries to Zapier!`)
+        if (data.count === 0) {
+          if (confirm('All data already synced! Would you like to reset the sync status and send everything again?')) {
+            // First reset
+            await fetch(`/api/forms/${resolvedParams.id}/integrations/zapier`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'reset-sync' })
+            })
+            // Then sync again
+            handleZapierSync()
+            return
+          }
+        } else {
+          alert(data.message || `Successfully sent ${data.count} entries to Zapier!`)
+        }
       } else {
         alert(data.error || 'Failed to sync. Please check your Zapier webhook.')
       }
@@ -112,6 +134,31 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
       alert('An error occurred during sync.')
     } finally {
       setZapSyncing(false)
+    }
+  const handleAirtableSync = async () => {
+    if (!airtableStatus?.apiKey || !airtableStatus?.baseId) return
+    if (!confirm(`This will sync all remaining submissions to your Airtable table "${airtableStatus.tableName || 'Submissions'}" and create any missing columns. Continue?`)) return
+
+    setAirSyncing(true)
+    try {
+      const resp = await fetch(`/api/forms/${resolvedParams.id}/integrations/airtable`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'sync-existing' })
+      })
+      
+      const data = await resp.json()
+      
+      if (resp.ok) {
+        alert(data.message || `Successfully synced to Airtable!`)
+      } else {
+        alert(data.error || 'Failed to sync to Airtable.')
+      }
+    } catch (err) {
+      console.error('Airtable sync failed:', err)
+      alert('An error occurred during sync.')
+    } finally {
+      setAirSyncing(false)
     }
   }
 
@@ -221,6 +268,21 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
                   <Zap className="w-4 h-4 fill-current" />
                 )}
                 {zapSyncing ? 'Sending...' : 'Sync to Zapier'}
+              </button>
+            )}
+
+            {airtableStatus?.apiKey && (
+              <button
+                onClick={handleAirtableSync}
+                disabled={airSyncing || submissions.length === 0}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold shadow-sm hover:bg-blue-700 transition-all text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {airSyncing ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Check className="w-4 h-4" />
+                )}
+                {airSyncing ? 'Syncing...' : 'Sync to Airtable'}
               </button>
             )}
             <Link
