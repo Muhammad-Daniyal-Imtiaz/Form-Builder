@@ -2,7 +2,14 @@
 
 import { useState, useEffect, use } from 'react'
 import Link from 'next/link'
-import { FileSpreadsheet, Download, ExternalLink, ArrowLeft, Loader2, Check, Zap } from 'lucide-react'
+import { cn } from '@/utils/cn'
+import { Database, Download, ExternalLink, ArrowLeft, Check, Zap } from 'lucide-react'
+
+const LoaderIcon = ({ className }: { className?: string }) => (
+  <svg className={cn("animate-spin", className)} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/>
+  </svg>
+)
 
 export default function SubmissionsPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params)
@@ -135,6 +142,8 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
     } finally {
       setZapSyncing(false)
     }
+  }
+
   const handleAirtableSync = async () => {
     if (!airtableStatus?.apiKey || !airtableStatus?.baseId) return
     if (!confirm(`This will sync all remaining submissions to your Airtable table "${airtableStatus.tableName || 'Submissions'}" and create any missing columns. Continue?`)) return
@@ -203,7 +212,7 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     
-    const fileName = `${form.title.replace(/\s+/g, '_')}_Submissions_${new Date().toISOString().split('T')[0]}.csv`
+    const fileName = `${form.title?.replace(/\s+/g, '_') || 'Form'}_Submissions_${new Date().toISOString().split('T')[0]}.csv`
     
     link.setAttribute('href', url)
     link.setAttribute('download', fileName)
@@ -211,6 +220,7 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
+    link.click()
   }
 
   if (loading) return <div className="p-8 text-center text-gray-500">Loading submissions...</div>
@@ -224,10 +234,14 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
           <div>
             <div className="flex items-center gap-3 mb-1">
               <Link href="/dashboard" className="text-gray-400 hover:text-indigo-600 transition-colors">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center border border-blue-100">
+                  <Database className="w-6 h-6 text-blue-600" />
+                </div>
               </Link>
-              <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{form?.title}</h1>
-              <span className="bg-indigo-100 text-indigo-700 text-xs font-bold px-2.5 py-0.5 rounded-full">Results</span>
+              <div>
+                <h1 className="text-2xl font-black text-gray-900 tracking-tight">{form?.title || 'Form Submissions'}</h1>
+                <p className="text-gray-500 text-sm font-medium">Manage and export your collected data</p>
+              </div>
             </div>
             <p className="text-sm text-gray-500 ml-8">{submissions.length} Total Submissions</p>
           </div>
@@ -248,9 +262,9 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
                 className="bg-green-600 text-white px-4 py-2 rounded-lg font-bold shadow-sm hover:bg-green-700 transition-all text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {syncing ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <LoaderIcon className="w-4 h-4" />
                 ) : (
-                  <FileSpreadsheet className="w-4 h-4" />
+                  <Database className="w-4 h-4" />
                 )}
                 {syncing ? 'Syncing...' : 'Sync to Google Sheets'}
               </button>
@@ -263,7 +277,7 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
                 className="bg-orange-600 text-white px-4 py-2 rounded-lg font-bold shadow-sm hover:bg-orange-700 transition-all text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {zapSyncing ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <LoaderIcon className="w-4 h-4" />
                 ) : (
                   <Zap className="w-4 h-4 fill-current" />
                 )}
@@ -278,7 +292,7 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
                 className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold shadow-sm hover:bg-blue-700 transition-all text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {airSyncing ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <LoaderIcon className="w-4 h-4" />
                 ) : (
                   <Check className="w-4 h-4" />
                 )}
