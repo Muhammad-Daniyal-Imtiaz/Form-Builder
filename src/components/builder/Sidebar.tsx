@@ -57,6 +57,7 @@ export function Sidebar() {
   } | null>(null)
   const [airtableStatus, setAirtableStatus] = useState<any>(null)
   const [slackStatus, setSlackStatus] = useState<any>(null)
+  const [emailStatus, setEmailStatus] = useState<any>(null)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -67,24 +68,27 @@ export function Sidebar() {
 
   const fetchStatus = async () => {
     try {
-      const [sheetResp, zapierResp, airtableResp, slackResp] = await Promise.all([
+      const [sheetResp, zapierResp, airtableResp, slackResp, emailResp] = await Promise.all([
         fetch(`/api/forms/${form.id}/integrations/google-sheets`),
         fetch(`/api/forms/${form.id}/integrations/zapier`),
         fetch(`/api/forms/${form.id}/integrations/airtable`),
-        fetch(`/api/forms/${form.id}/integrations/slack`)
+        fetch(`/api/forms/${form.id}/integrations/slack`),
+        fetch(`/api/forms/${form.id}/integrations/email`)
       ])
       
-      const [sheetData, zapierData, airtableData, slackData] = await Promise.all([
+      const [sheetData, zapierData, airtableData, slackData, emailData] = await Promise.all([
         sheetResp.json(),
         zapierResp.json(),
         airtableResp.json(),
-        slackResp.json()
+        slackResp.json(),
+        emailResp.json()
       ])
       
       setSheetStatus(sheetData)
       setZapierStatus(zapierData)
       setAirtableStatus(airtableData)
       setSlackStatus(slackData)
+      setEmailStatus(emailData)
     } catch (err) {
       console.error('Failed to fetch integration status:', err)
     }
@@ -175,6 +179,30 @@ export function Sidebar() {
       }
     } catch (err) {
       console.error(`Slack action ${action} failed:`, err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleEmailAction = async (action: string, payload: any = {}) => {
+    setLoading(true)
+    try {
+      const resp = await fetch(`/api/forms/${form.id}/integrations/email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, ...payload })
+      })
+      const data = await resp.json()
+      if (resp.ok) {
+        if (action === 'test-email') {
+          alert(data.message || 'Test email sent!')
+        }
+        await fetchStatus()
+      } else {
+        alert(data.error || 'Email action failed')
+      }
+    } catch (err) {
+      console.error(`Email action ${action} failed:`, err)
     } finally {
       setLoading(false)
     }
@@ -976,9 +1004,6 @@ export function Sidebar() {
                       )}
                     </div>
                   </div>
-                </div>
-
-                {/* AIRTABLE INTEGRATION */}
                 <div className="relative group">
                   <div className={cn(
                     "p-4 bg-white border rounded-2xl transition-all duration-300",
@@ -1220,8 +1245,144 @@ export function Sidebar() {
                     </div>
                   </div>
                 </div>
+                </div>{/* closes pt-2 space-y-3 */}
+              </div>{/* closes p-3 bg-gray-50 integrations container */}
+            </div>{/* closes outer integrations wrapper */}
+
+            {/* ─── EMAIL NOTIFICATIONS ─── */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden group hover:border-indigo-300 transition-all duration-300">
+              <div className="p-4 bg-gradient-to-br from-indigo-50 to-white border-b border-gray-50 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200 group-hover:scale-110 transition-transform">
+                    <Mail className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black text-gray-900 tracking-tight">Email Notifications</h4>
+                    <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-wider">Inbox Alerts</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className={`w-2 h-2 rounded-full ${emailStatus?.isEnabled ? 'bg-emerald-500 animate-pulse' : 'bg-gray-300'}`} />
+                  <span className="text-[10px] font-bold text-gray-400">{emailStatus?.isEnabled ? 'ACTIVE' : 'OFF'}</span>
+                </div>
+              </div>
+
+              <div className="p-4 space-y-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-tight px-1">SMTP Host</label>
+                  <input
+                    type="text"
+                    placeholder="smtp.gmail.com"
+                    defaultValue={emailStatus?.host || 'smtp.gmail.com'}
+                    onBlur={(e) => {
+                      if (e.target.value !== (emailStatus?.host || '')) {
+                        handleEmailAction('update', { ...emailStatus, host: e.target.value })
+                      }
+                    }}
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 outline-none transition-all"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-tight px-1">Port</label>
+                    <input
+                      type="number"
+                      placeholder="465"
+                      defaultValue={emailStatus?.port || 465}
+                      onBlur={(e) => {
+                        const val = parseInt(e.target.value)
+                        if (val !== emailStatus?.port) {
+                          handleEmailAction('update', { ...emailStatus, port: val })
+                        }
+                      }}
+                      className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 outline-none transition-all"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-tight px-1">Sender Email</label>
+                    <input
+                      type="email"
+                      placeholder="you@gmail.com"
+                      defaultValue={emailStatus?.email || ''}
+                      onBlur={(e) => {
+                        if (e.target.value !== (emailStatus?.email || '')) {
+                          handleEmailAction('update', { ...emailStatus, email: e.target.value })
+                        }
+                      }}
+                      className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 outline-none transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-tight px-1">App Password</label>
+                  <input
+                    type="password"
+                    placeholder="Google App Password"
+                    defaultValue={emailStatus?.appPassword || ''}
+                    onBlur={(e) => {
+                      if (e.target.value && e.target.value !== '********') {
+                        handleEmailAction('update', { ...emailStatus, appPassword: e.target.value })
+                      }
+                    }}
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 outline-none transition-all"
+                  />
+                  <p className="text-[9px] text-gray-400 px-1 italic">Use a Google App Password, not your regular password.</p>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-tight px-1">Recipients</label>
+                  <input
+                    type="text"
+                    placeholder="admin@email.com, team@email.com"
+                    defaultValue={emailStatus?.toList || ''}
+                    onBlur={(e) => {
+                      if (e.target.value !== (emailStatus?.toList || '')) {
+                        handleEmailAction('update', { ...emailStatus, toList: e.target.value })
+                      }
+                    }}
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 outline-none transition-all"
+                  />
+                </div>
+
+                <div className="pt-1 flex flex-col gap-2">
+                  {emailStatus?.email && (
+                    <button
+                      onClick={() => handleEmailAction('test-email', emailStatus)}
+                      disabled={loading}
+                      className="w-full bg-indigo-600 text-white py-2.5 rounded-xl font-bold text-xs shadow-lg shadow-indigo-200 hover:bg-indigo-700 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+                    >
+                      <Mail className="w-3 h-3" />
+                      Send Test Email
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleEmailAction('update', { ...emailStatus, enabled: !emailStatus?.isEnabled })}
+                    disabled={!emailStatus?.email || loading}
+                    className={cn(
+                      "w-full py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 disabled:opacity-40",
+                      emailStatus?.isEnabled
+                        ? "bg-red-50 text-red-600 hover:bg-red-100"
+                        : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                    )}
+                  >
+                    {emailStatus?.isEnabled ? (
+                      <>
+                        <RefreshCcw className="w-3 h-3" />
+                        Deactivate Email
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-3 h-3" />
+                        Activate Email Notifications
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
+
           </motion.div>
         )}
         

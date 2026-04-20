@@ -1,5 +1,6 @@
 import { createClient, createAdminClient } from '@/utils/supabase/server'
 import { NextResponse } from 'next/server'
+import nodemailer from 'nodemailer'
 
 export async function GET(
   request: Request,
@@ -111,7 +112,7 @@ export async function POST(
     // 🚀 INTEGRATIONS SYNC (GOOGLE SHEETS & ZAPIER)
     const { data: formConfig, error: configError } = await adminClient
       .from('forms')
-      .select('title, user_id, google_sheet_id, google_sheet_enabled, google_sheet_name, zapier_webhook_url, zapier_enabled, airtable_api_key, airtable_base_id, airtable_table_name, airtable_enabled, slack_bot_token, slack_channel_id, slack_enabled')
+      .select('title, user_id, google_sheet_id, google_sheet_enabled, google_sheet_name, zapier_webhook_url, zapier_enabled, airtable_api_key, airtable_base_id, airtable_table_name, airtable_enabled, slack_bot_token, slack_channel_id, slack_enabled, email_enabled, notification_email, email_app_password, email_to_list, email_host, email_port, email_secure')
       .eq('id', id)
       .single();
 
@@ -359,6 +360,69 @@ export async function POST(
           }
         } catch (err) {
           console.error('[Slack] Failed slack sync:', err);
+        }
+      }
+
+      // 5. EMAIL NOTIFICATIONS
+      if (formConfig.email_enabled && formConfig.notification_email && formConfig.email_app_password) {
+        console.log(`[Email] Attempting to send notification to: ${formConfig.email_to_list || formConfig.notification_email}`);
+        try {
+          const { data: fields } = await adminClient.from('form_fields').select('id, label, type').eq('form_id', id).order('order');
+          
+          if (fields) {
+            const transporter = nodemailer.createTransport({
+              host: formConfig.email_host || 'smtp.gmail.com',
+              port: formConfig.email_port || 465,
+              secure: formConfig.email_secure ?? true,
+              auth: {
+                user: formConfig.notification_email,
+                pass: formConfig.email_app_password,
+              },
+            });
+
+            const rows = fields.map(f => {
+              let val = data[f.id] || data[f.label] || '';
+              if (Array.isArray(val)) {
+                if (['file', 'multifile'].includes(f.type)) {
+                  val = val.map(file => `<a href="${file.url}">${file.fileName || 'Download'}</a>`).join(', ');
+                } else {
+                  val = val.join(', ');
+                }
+              } else if (typeof val === 'object' && val?.url) {
+                val = `<a href="${val.url}">${val.fileName || 'Download'}</a>`;
+              }
+              return `<tr>
+                <td style="padding: 10px; border: 1px solid #eee; font-weight: bold; width: 30%;">${f.label}</td>
+                <td style="padding: 10px; border: 1px solid #eee;">${val || '-(empty)-'}</td>
+              </tr>`;
+            }).join('');
+
+            const emailHtml = `
+              <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #4F46E5; border-radius: 10px; overflow: hidden;">
+                <div style="background: #4F46E5; color: white; padding: 20px; text-align: center;">
+                  <h1 style="margin: 0; font-size: 20px;">New Submission: ${formConfig.title || 'Your Form'}</h1>
+                </div>
+                <div style="padding: 20px;">
+                  <p>A new entry has been recorded for your form.</p>
+                  <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                    ${rows}
+                  </table>
+                  <p style="margin-top: 25px; font-size: 11px; color: #999;">Submission ID: ${submission.id}</p>
+                </div>
+              </div>
+            `;
+
+            await transporter.sendMail({
+              from: `"Form Builder" <${formConfig.notification_email}>`,
+              to: formConfig.email_to_list || formConfig.notification_email,
+              subject: `🛎️ New Submission for ${formConfig.title || 'Form'}`,
+              html: emailHtml
+            });
+
+            console.log('[Email] Notification sent successfully!');
+          }
+        } catch (err) {
+          console.error('[Email] Notification failed:', err);
         }
       }
     }
