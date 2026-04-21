@@ -66,10 +66,27 @@ export async function POST(
     }
 
     const submissionData = await request.json()
+    const { data, files, captchaToken } = submissionData
 
-    // Assuming the client shape is: { data: { ...fields }, files: [ { path, size, name... } ] }
-    // But mostly we just care about data JSON
-    const { data, files } = submissionData
+    // 2. CRYITICAL: Verify Turnstile Captcha
+    if (process.env.TURNSTILE_SECRET_KEY && process.env.TURNSTILE_SECRET_KEY !== 'your_secret_key_here') {
+      if (!captchaToken) {
+        return NextResponse.json({ error: 'Security check required' }, { status: 400 })
+      }
+
+      const verifyUrl = 'https://challenges.cloudflare.com/turnstile/v0/siteverify'
+      const verifyRes = await fetch(verifyUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `secret=${process.env.TURNSTILE_SECRET_KEY}&response=${captchaToken}`,
+      })
+
+      const verifyData = await verifyRes.json()
+      if (!verifyData.success) {
+        console.error('[Bot Protection] Turnstile verification failed:', verifyData['error-codes'])
+        return NextResponse.json({ error: 'Security verification failed. Please try again.' }, { status: 400 })
+      }
+    }
 
     if (!data) {
       return NextResponse.json({ error: 'Submission data is required' }, { status: 400 })

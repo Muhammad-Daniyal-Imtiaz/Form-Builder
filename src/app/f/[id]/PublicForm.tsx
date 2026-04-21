@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
+import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile'
 
 interface CustomStyles {
   headerBg: string
@@ -103,6 +104,8 @@ export default function PublicForm({
   const [loading, setLoading] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState('')
+  const [turnstileToken, setTurnstileToken] = useState<string>('')
+  const turnstileRef = useRef<TurnstileInstance>(null)
 
   const cs: CustomStyles = { ...DEFAULT_STYLES, ...rawStyles }
 
@@ -306,7 +309,11 @@ export default function PublicForm({
       const res = await fetch(`/api/forms/${form.id}/submissions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data: activeData, files: uploadedFilesArray }),
+        body: JSON.stringify({ 
+          data: activeData, 
+          files: uploadedFilesArray,
+          captchaToken: turnstileToken 
+        }),
       })
       const resData = await res.json()
       if (!res.ok) throw new Error(resData.error || 'Failed to submit form')
@@ -319,6 +326,9 @@ export default function PublicForm({
     } catch (err: any) {
       setError(err.message)
       setLoading(false)
+      // Reset turnstile on error
+      turnstileRef.current?.reset()
+      setTurnstileToken('')
     }
   }
 
@@ -796,8 +806,21 @@ export default function PublicForm({
             >
               Back
             </button>
+          {isLastPage && (
+            <div className="flex justify-center mb-6 w-full">
+              <Turnstile
+                ref={turnstileRef}
+                siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ''}
+                onSuccess={(token) => setTurnstileToken(token)}
+                onError={() => {
+                  setError('Security check failed. Please refresh and try again.')
+                  setTurnstileToken('')
+                }}
+                onExpire={() => setTurnstileToken('')}
+              />
+            </div>
           )}
-          
+
           {isLastPage ? (
             <button
               type="submit"
