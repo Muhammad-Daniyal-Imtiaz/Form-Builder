@@ -20,22 +20,34 @@ export function encrypt(text: string): string {
 export function decrypt(text: string): string {
   if (!text) return text;
   
+  // Basic check for our format: [ivHex]:[encryptedHex]
+  // IV is 16 bytes = 32 hex characters
   if (!text.includes(':')) {
     return text;
   }
   
   try {
-    const [ivHex, encryptedHex] = text.split(':');
-    
-    if (!ivHex || !encryptedHex) return text;
+    const parts = text.split(':');
+    // Robust check: leftmost part must be exactly 32 hex chars for a 16-byte IV
+    const ivHex = parts[0];
+    const encryptedHex = parts.slice(1).join(':');
+
+    if (ivHex.length !== 32) {
+      return text;
+    }
     
     const iv = Buffer.from(ivHex, 'hex');
+    if (iv.length !== 16) {
+      return text;
+    }
+
     const decipher = createDecipheriv('aes-256-cbc', ENCRYPTION_KEY, iv);
     let decrypted = decipher.update(encryptedHex, 'hex', 'utf8');
     decrypted += decipher.final('utf8');
     return decrypted;
   } catch (err) {
-    console.error('Decryption failed, returning plain text fallback:', err);
+    // If it's a valid looking IV but not actually encrypted with our key,
+    // or hex parsing fails, we reach here. Just return original.
     return text;
   }
 }
