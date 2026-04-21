@@ -2,6 +2,13 @@ import { createClient, createAdminClient } from '@/utils/supabase/server'
 import { NextResponse } from 'next/server'
 import nodemailer from 'nodemailer'
 import { decrypt } from '@/utils/encryption'
+import { z } from 'zod'
+
+const submissionSchema = z.object({
+  data: z.record(z.string(), z.any()),
+  files: z.array(z.any()).optional(),
+  captchaToken: z.string().optional(),
+})
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -65,8 +72,17 @@ export async function POST(
       return NextResponse.json({ error: 'Form is not accepting submissions' }, { status: 403 })
     }
 
-    const submissionData = await request.json()
-    const { data, files, captchaToken } = submissionData
+    const body = await request.json()
+    const result = submissionSchema.safeParse(body)
+
+    if (!result.success) {
+      return NextResponse.json({ 
+        error: 'Invalid request format', 
+        details: result.error.format() 
+      }, { status: 400 })
+    }
+
+    const { data, files, captchaToken } = result.data
 
     // 2. CRYITICAL: Verify Turnstile Captcha
     if (process.env.TURNSTILE_SECRET_KEY && process.env.TURNSTILE_SECRET_KEY !== 'your_secret_key_here') {
