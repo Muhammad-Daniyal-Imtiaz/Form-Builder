@@ -794,8 +794,25 @@ export default function PublicForm({
           </motion.div>
         </AnimatePresence>
 
+        {isLastPage && (
+          <div className="flex justify-center mt-12 mb-6 w-full">
+            <Turnstile
+              ref={turnstileRef}
+              siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ''}
+              onSuccess={(token) => setTurnstileToken(token)}
+              onError={() => {
+                setError('Security check failed. Please refresh and try again.')
+                setTurnstileToken('')
+              }}
+              onExpire={() => setTurnstileToken('')}
+            />
+          </div>
+        )}
+
         {/* Navigation Controls */}
-        <div className="pt-10 mt-6 flex gap-4" style={{ borderTop: `1px solid ${cs.inputBorderColor}40` }}>
+        <div className="pt-8 mt-4 flex gap-4" style={{ 
+          borderTop: isLastPage ? 'none' : `1px solid ${cs.inputBorderColor}40` 
+        }}>
           {currentPage > 0 && (
             <button
               type="button"
@@ -806,26 +823,13 @@ export default function PublicForm({
             >
               Back
             </button>
-          {isLastPage && (
-            <div className="flex justify-center mb-6 w-full">
-              <Turnstile
-                ref={turnstileRef}
-                siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ''}
-                onSuccess={(token) => setTurnstileToken(token)}
-                onError={() => {
-                  setError('Security check failed. Please refresh and try again.')
-                  setTurnstileToken('')
-                }}
-                onExpire={() => setTurnstileToken('')}
-              />
-            </div>
           )}
-
+          
           {isLastPage ? (
             <button
               type="submit"
-              disabled={loading}
-              className="flex-[2] py-4 px-6 text-lg font-bold transition-all disabled:opacity-60 hover:opacity-95 active:scale-[0.99] shadow-lg"
+              disabled={loading || !turnstileToken}
+              className="flex-[2] py-4 px-6 text-lg font-bold transition-all disabled:opacity-50 hover:opacity-95 active:scale-[0.99] shadow-lg"
               style={{ background: cs.accentColor, color: cs.buttonText, fontFamily: 'inherit', borderRadius: btnRadius }}
             >
               {loading ? 'Submitting...' : (settings.submitButtonText || 'Submit Form')}
