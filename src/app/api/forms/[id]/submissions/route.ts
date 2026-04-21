@@ -3,12 +3,24 @@ import { NextResponse } from 'next/server'
 import nodemailer from 'nodemailer'
 import { decrypt } from '@/utils/encryption'
 import { z } from 'zod'
+import { Ratelimit } from "@upstash/ratelimit"
+import { Redis } from "@upstash/redis"
 
 const submissionSchema = z.object({
   data: z.record(z.string(), z.any()),
   files: z.array(z.any()).optional(),
   captchaToken: z.string().optional(),
 })
+
+// Initialize Ratelimit if credentials exist
+let ratelimit: Ratelimit | null = null;
+if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN && process.env.UPSTASH_REDIS_REST_URL !== 'your_redis_url_here') {
+  ratelimit = new Ratelimit({
+    redis: Redis.fromEnv(),
+    limiter: Ratelimit.slidingWindow(5, "1 h"),
+    analytics: true,
+  });
+}
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -53,6 +65,25 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // 0. Rate Limiting (IP-based)
+    if (ratelimit) {
+      const ip = request.headers.get("x-forwarded-for") || "anonymous";
+      const { success, limit, reset, remaining } = await ratelimit.limit(ip);
+      
+      if (!success) {
+        return NextResponse.json({ 
+          error: 'Too many submissions. Please try again in an hour.' 
+        }, { 
+          status: 429,
+          headers: {
+            'X-RateLimit-Limit': limit.toString(),
+            'X-RateLimit-Remaining': remaining.toString(),
+            'X-RateLimit-Reset': reset.toString(),
+          }
+        });
+      }
+    }
+
     const id = (await params).id
     // Need admin client because the person submitting the form might not be authenticated
     const adminClient = createAdminClient()
