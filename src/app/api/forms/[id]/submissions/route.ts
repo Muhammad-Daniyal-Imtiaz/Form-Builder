@@ -139,22 +139,26 @@ export async function POST(
       return NextResponse.json({ error: 'Submission data is required' }, { status: 400 })
     }
 
-    // 🚀 ENQUEUE FOR ASYNCHRONOUS PROCESSING
-    // We send everything the worker needs to the queue
-    const { data: msgId, error: enqueueError } = await adminClient.rpc('enqueue_submission', {
-      queue_name: 'form_submissions_queue',
-      message: {
-        form_id: id,
-        data: data,
-        files: files || [],
-        submitted_at: new Date().toISOString(),
-        client_ip: request.headers.get("x-forwarded-for") || "anonymous",
-      }
-    });
+    // 🚀 ENQUEUE FOR ASYNCHRONOUS PROCESSING (Upstash Redis)
+    const payload = {
+      form_id: id,
+      data: data,
+      files: files || [],
+      submitted_at: new Date().toISOString(),
+      client_ip: request.headers.get("x-forwarded-for") || "anonymous",
+    };
 
-    if (enqueueError) {
-      console.error('[Queue] Enqueue failure:', enqueueError);
-      // Fallback: if queue fails, maybe try direct insert or return error
+    let msgId = `msg_${Date.now()}`;
+
+    try {
+      if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_URL !== 'your_redis_url_here') {
+        const redis = Redis.fromEnv();
+        await redis.lpush('form_submissions_queue', payload);
+      } else {
+        throw new Error('Upstash Redis is not configured.');
+      }
+    } catch (enqueueError) {
+      console.error('[Queue] Upstash Enqueue failure:', enqueueError);
       return NextResponse.json({ error: 'System busy. Please try again later.' }, { status: 503 });
     }
 

@@ -39,20 +39,37 @@ Deno.serve(async (req) => {
   console.log(`[Worker] Triggered by: ${body.trigger || 'unknown'}`);
 
   try {
-    // Process the queue: Pop 1 item
-    const { data: queueItems, error: popError } = await supabase.rpc("pop_submission", {
-      queue_name: "form_submissions_queue",
-    });
+    // Process the queue: Pop items from Upstash Redis (up to 50 at a time)
+    const redisUrl = Deno.env.get("UPSTASH_REDIS_REST_URL");
+    const redisToken = Deno.env.get("UPSTASH_REDIS_REST_TOKEN");
 
-    if (popError) throw popError;
+    if (!redisUrl || !redisToken) {
+      throw new Error("Missing Upstash Redis credentials");
+    }
+
+    const popRes = await fetch(`${redisUrl}/lpop/form_submissions_queue/50`, {
+      headers: { Authorization: `Bearer ${redisToken}` },
+    });
+    
+    const popData = await popRes.json();
+    if (popData.error) throw new Error(`Upstash Error: ${popData.error}`);
+    
+    let queueItems = popData.result;
+    
     if (!queueItems || queueItems.length === 0) {
       return new Response(JSON.stringify({ message: "No messages in queue" }), { headers: { "Content-Type": "application/json" } });
     }
 
-    const { msg_id, message } = queueItems[0];
-    const { form_id, data, files, submitted_at } = message;
+    // Upstash LPOP with count > 1 returns an array of strings. We need to parse them.
+    if (!Array.isArray(queueItems)) queueItems = [queueItems];
+    
+    // Process the first item for now (or wrap the below in a loop for full batch processing)
+    const rawMessage = queueItems[0];
+    const message = typeof rawMessage === 'string' ? JSON.parse(rawMessage) : rawMessage;
 
-    console.log(`[Worker] Started ${msg_id} (Form: ${form_id})`);
+    const { form_id, data, files, submitted_at, client_ip } = message;
+
+    console.log(`[Worker] Processing submission for form: ${form_id}`);
 
     // 1. Insert into submissions
     const { data: submission, error: submitError } = await supabase
@@ -80,7 +97,7 @@ Deno.serve(async (req) => {
       await runIntegrations(formConfig, submission, data);
     }
 
-    return new Response(JSON.stringify({ success: true, processed_id: submission.id, msg_id }));
+    return new Response(JSON.stringify({ success: true, processed_id: submission.id }));
   } catch (err) {
     console.error("[Worker] Global Error:", err);
     return new Response(JSON.stringify({ error: err.message }), { status: 500 });
