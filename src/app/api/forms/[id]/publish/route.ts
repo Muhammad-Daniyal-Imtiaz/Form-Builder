@@ -1,5 +1,8 @@
 import { createAdminClient } from '@/utils/supabase/server'
 import { NextResponse } from 'next/server'
+import { Redis } from "@upstash/redis"
+
+const redis = Redis.fromEnv()
 
 export async function POST(
   request: Request,
@@ -29,6 +32,13 @@ export async function POST(
         return NextResponse.json({ error: 'Form not found' }, { status: 404 })
       }
       throw error
+    }
+
+    // Invalidate Cache
+    try {
+      await redis.del(`form:${id}:meta`)
+    } catch (e) {
+      console.error('[Cache] Redis del error:', e)
     }
 
     return NextResponse.json(form)

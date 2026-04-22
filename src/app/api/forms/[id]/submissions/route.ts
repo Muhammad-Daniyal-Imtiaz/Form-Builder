@@ -1,7 +1,5 @@
 import { createClient, createAdminClient } from '@/utils/supabase/server'
 import { NextResponse } from 'next/server'
-import nodemailer from 'nodemailer'
-import { decrypt } from '@/utils/encryption'
 import { z } from 'zod'
 import { Ratelimit } from "@upstash/ratelimit"
 import { Redis } from "@upstash/redis"
@@ -17,10 +15,21 @@ let ratelimit: Ratelimit | null = null;
 if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN && process.env.UPSTASH_REDIS_REST_URL !== 'your_redis_url_here') {
   ratelimit = new Ratelimit({
     redis: Redis.fromEnv(),
-    limiter: Ratelimit.slidingWindow(5, "1 h"),
+    limiter: Ratelimit.slidingWindow(20, "10 m"),
     analytics: true,
   });
 }
+
+const redis = Redis.fromEnv();
+
+function getClientIp(request: Request) {
+  return request.headers.get('x-vercel-forwarded-for') || 
+         request.headers.get('x-real-ip') || 
+         request.headers.get('cf-connecting-ip') || 
+         request.headers.get('x-forwarded-for')?.split(',')[0].trim() || 
+         "anonymous";
+}
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -34,7 +43,6 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // First check form ownership
     const { data: form, error: formError } = await supabase
       .from('forms')
       .select('id')
@@ -65,14 +73,28 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // 0. Rate Limiting (IP-based)
+    const id = (await params).id
+    const clientIp = getClientIp(request);
+    const idempotencyKey = request.headers.get('idempotency-key');
+
+    // 0. Idempotency Check (Enterprise Feature)
+    if (idempotencyKey) {
+      const existingMsgId = await redis.get(`idempotency:${idempotencyKey}`);
+      if (existingMsgId) {
+        return NextResponse.json({ 
+          success: true, 
+          message: 'Submission received (idempotent retry).',
+          queue_id: existingMsgId 
+        }, { status: 202 });
+      }
+    }
+
+    // 1. Rate Limiting (Per-Form Per-IP)
     if (ratelimit) {
-      const ip = request.headers.get("x-forwarded-for") || "anonymous";
-      const { success, limit, reset, remaining } = await ratelimit.limit(ip);
-      
+      const { success, limit, reset, remaining } = await ratelimit.limit(`${id}:${clientIp}`);
       if (!success) {
         return NextResponse.json({ 
-          error: 'Too many submissions. Please try again in an hour.' 
+          error: 'Too many submissions for this form. Please try again in 10 minutes.' 
         }, { 
           status: 429,
           headers: {
@@ -84,86 +106,67 @@ export async function POST(
       }
     }
 
-    const id = (await params).id
-    // Need admin client because the person submitting the form might not be authenticated
-    const adminClient = createAdminClient()
+    const body = await request.json();
+    const result = submissionSchema.safeParse(body);
+    if (!result.success) {
+      return NextResponse.json({ error: 'Invalid request format', details: result.error.format() }, { status: 400 });
+    }
 
-    // 1. Check if form exists and is published
-    const { data: form, error: formError } = await adminClient
-      .from('forms')
-      .select('published')
-      .eq('id', id)
-      .single()
+    const { data, files, captchaToken } = result.data;
 
-    if (formError || !form) {
-      return NextResponse.json({ error: 'Form not found' }, { status: 404 })
+    // 2. Metadata Cache Check (DB round-trip protection)
+    const cacheKey = `form:${id}:meta`;
+    let form: { published: boolean } | null = await redis.get(cacheKey).catch(() => null);
+
+    if (!form) {
+      const adminClient = createAdminClient();
+      const { data: dbForm, error: formError } = await adminClient
+        .from('forms')
+        .select('published')
+        .eq('id', id)
+        .single();
+
+      if (formError || !dbForm) {
+        return NextResponse.json({ error: 'Form not found' }, { status: 404 });
+      }
+      form = dbForm;
+      await redis.setex(cacheKey, 60, JSON.stringify(form)).catch(() => null);
     }
 
     if (!form.published) {
-      return NextResponse.json({ error: 'Form is not accepting submissions' }, { status: 403 })
+      return NextResponse.json({ error: 'Form is not accepting submissions' }, { status: 403 });
     }
 
-    const body = await request.json()
-    const result = submissionSchema.safeParse(body)
-
-    if (!result.success) {
-      return NextResponse.json({ 
-        error: 'Invalid request format', 
-        details: result.error.format() 
-      }, { status: 400 })
-    }
-
-    const { data, files, captchaToken } = result.data
-
-    // 2. CRYITICAL: Verify Turnstile Captcha
+    // 3. Low-Latency Turnstile Prep
+    // Verification moved to worker to cut ~200ms of latency from the hot path
     if (process.env.TURNSTILE_SECRET_KEY && process.env.TURNSTILE_SECRET_KEY !== 'your_secret_key_here') {
       if (!captchaToken) {
-        return NextResponse.json({ error: 'Security check required' }, { status: 400 })
-      }
-
-      const verifyUrl = 'https://challenges.cloudflare.com/turnstile/v0/siteverify'
-      const verifyRes = await fetch(verifyUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `secret=${process.env.TURNSTILE_SECRET_KEY}&response=${captchaToken}`,
-      })
-
-      const verifyData = await verifyRes.json()
-      if (!verifyData.success) {
-        console.error('[Bot Protection] Turnstile verification failed:', verifyData['error-codes'])
-        return NextResponse.json({ error: 'Security verification failed. Please try again.' }, { status: 400 })
+        return NextResponse.json({ error: 'Security check required' }, { status: 400 });
       }
     }
 
-    if (!data) {
-      return NextResponse.json({ error: 'Submission data is required' }, { status: 400 })
-    }
-
-    // 🚀 ENQUEUE FOR ASYNCHRONOUS PROCESSING (Upstash Redis)
+    // 4. Enqueue with UUID and Status Tracking
+    const msgId = crypto.randomUUID();
     const payload = {
+      msg_id: msgId,
       form_id: id,
       data: data,
       files: files || [],
+      captchaToken: captchaToken,
       submitted_at: new Date().toISOString(),
-      client_ip: request.headers.get("x-forwarded-for") || "anonymous",
+      client_ip: clientIp,
     };
 
-    let msgId = `msg_${Date.now()}`;
-
-    try {
-      if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_URL !== 'your_redis_url_here') {
-        const redis = Redis.fromEnv();
-        await redis.lpush('form_submissions_queue', payload);
-      } else {
-        throw new Error('Upstash Redis is not configured.');
-      }
-    } catch (enqueueError) {
-      console.error('[Queue] Upstash Enqueue failure:', enqueueError);
-      return NextResponse.json({ error: 'System busy. Please try again later.' }, { status: 503 });
+    const multi = redis.multi();
+    multi.lpush('form_submissions_queue', JSON.stringify(payload));
+    multi.hset(`msg:${msgId}`, { status: "queued", formId: id, ts: Date.now() });
+    multi.expire(`msg:${msgId}`, 86400); // 24h status TTL
+    
+    if (idempotencyKey) {
+      multi.setex(`idempotency:${idempotencyKey}`, 600, msgId); // 10m idempotency
     }
-
-    // The worker is now triggered automatically every 1 minute via a Supabase pg_cron job.
-    // This allows the API to just dump into Upstash Redis and return instantly, avoiding Edge Function rate limits.
+    
+    await multi.exec();
 
     return NextResponse.json({ 
       success: true, 

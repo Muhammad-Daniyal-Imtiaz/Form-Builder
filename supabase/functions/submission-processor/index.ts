@@ -1,5 +1,5 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.42.0";
-import nodemailer from "https://esm.sh/nodemailer@6.9.13";
+import { createClient } from "supabase-js";
+import nodemailer from "nodemailer";
 import crypto from "node:crypto";
 
 // --- Types ---
@@ -36,68 +36,123 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 Deno.serve(async (req) => {
   const body = await req.json().catch(() => ({}));
+  const startTime = Date.now();
   console.log(`[Worker] Triggered by: ${body.trigger || 'unknown'}`);
 
+  let totalProcessed = 0;
+
   try {
-    // Process the queue: Pop items from Upstash Redis (up to 50 at a time)
     const redisUrl = Deno.env.get("UPSTASH_REDIS_REST_URL");
     const redisToken = Deno.env.get("UPSTASH_REDIS_REST_TOKEN");
+    const turnstileSecret = Deno.env.get("TURNSTILE_SECRET_KEY");
 
-    if (!redisUrl || !redisToken) {
-      throw new Error("Missing Upstash Redis credentials");
-    }
+    if (!redisUrl || !redisToken) throw new Error("Missing Upstash Redis credentials");
 
-    const popRes = await fetch(`${redisUrl}/lpop/form_submissions_queue/50`, {
-      headers: { Authorization: `Bearer ${redisToken}` },
-    });
-    
-    const popData = await popRes.json();
-    if (popData.error) throw new Error(`Upstash Error: ${popData.error}`);
-    
-    let queueItems = popData.result;
-    
-    if (!queueItems || queueItems.length === 0) {
-      return new Response(JSON.stringify({ message: "No messages in queue" }), { headers: { "Content-Type": "application/json" } });
-    }
+    const authHeader = { Authorization: `Bearer ${redisToken}` };
 
-    // Upstash LPOP with count > 1 returns an array of strings. We need to parse them.
-    if (!Array.isArray(queueItems)) queueItems = [queueItems];
-    
-    // Process the first item for now (or wrap the below in a loop for full batch processing)
-    const rawMessage = queueItems[0];
-    const message = typeof rawMessage === 'string' ? JSON.parse(rawMessage) : rawMessage;
+    // 🚀 DRAIN LOOP (FIFO processing: Next.js LPUSH + Worker RPOP)
+    while (Date.now() - startTime < 120000) {
+      // Atomic multi-pop (FIFO)
+      const popRes = await fetch(`${redisUrl}/rpop/form_submissions_queue/500`, { headers: authHeader });
+      const popData = await popRes.json();
+      if (popData.error) throw new Error(`Upstash Error: ${popData.error}`);
+      
+      let queueItemsRaw = popData.result;
+      if (!queueItemsRaw || queueItemsRaw.length === 0) break;
+      if (!Array.isArray(queueItemsRaw)) queueItemsRaw = [queueItemsRaw];
+      
+      const queueItems = queueItemsRaw.map(m => typeof m === 'string' ? JSON.parse(m) : m);
+      console.log(`[Worker] Batch of ${queueItems.length} items popped (FIFO)`);
 
-    const { form_id, data, files, submitted_at, client_ip } = message;
+      // 1. Parallel Verification & Status Updates
+      const verifiedItems = await Promise.all(queueItems.map(async (item) => {
+        const msgKey = `msg:${item.msg_id}`;
+        
+        // Update status to processing
+        await fetch(`${redisUrl}/hset/${msgKey}/status/processing`, { headers: authHeader });
 
-    console.log(`[Worker] Processing submission for form: ${form_id}`);
-
-    // 1. Insert into submissions
-    const { data: submission, error: submitError } = await supabase
-      .from("submissions")
-      .insert({ form_id, data, submitted_at: submitted_at || new Date().toISOString() })
-      .select().single();
-
-    if (submitError) throw submitError;
-
-    // 2. Handle files
-    if (files?.length > 0) {
-      const fileRecords = files.map((f: any) => ({
-        submission_id: submission.id,
-        file_path: f.path,
-        file_name: f.fileName || "unknown",
-        file_size: f.size || 0,
-        mime_type: f.mimeType || "application/octet-stream",
+        // Asynchronous Turnstile Verification (Offloaded from API)
+        if (turnstileSecret && turnstileSecret !== 'your_secret_key_here' && item.captchaToken) {
+          try {
+            const vRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: `secret=${turnstileSecret}&response=${item.captchaToken}`,
+            });
+            const vData = await vRes.json();
+            if (!vData.success) {
+              console.warn(`[Worker] Dropping bot submission: ${item.msg_id}`);
+              await fetch(`${redisUrl}/hset/${msgKey}/status/rejected`, { headers: authHeader });
+              return null;
+            }
+          } catch (e) {
+            console.error(`[Worker] Turnstile error for ${item.msg_id}:`, e);
+            // On error, we might want to allow or retry. Here we allow to be safe.
+          }
+        }
+        return item;
       }));
-      await supabase.from("files").insert(fileRecords);
+
+      const validItems = verifiedItems.filter(i => i !== null);
+      if (validItems.length === 0) continue;
+
+      // 2. STAGE 1: Bulk Insert Submissions
+      const submissionsToInsert = validItems.map(item => ({
+        form_id: item.form_id,
+        data: item.data,
+        submitted_at: item.submitted_at || new Date().toISOString()
+      }));
+
+      const { data: insertedSubmissions, error: bulkSubmitError } = await supabase
+        .from("submissions")
+        .insert(submissionsToInsert)
+        .select('id, form_id, data, submitted_at');
+
+      if (bulkSubmitError) throw bulkSubmitError;
+
+      // 3. STAGE 2: Bulk Insert Files
+      const fileRecords: any[] = [];
+      insertedSubmissions.forEach((sub, index) => {
+        const originalFiles = validItems[index].files;
+        if (originalFiles?.length > 0) {
+          originalFiles.forEach((f: any) => {
+            fileRecords.push({
+              submission_id: sub.id,
+              file_path: f.path,
+              file_name: f.fileName || "unknown",
+              file_size: f.size || 0,
+              mime_type: f.mimeType || "application/octet-stream",
+            });
+          });
+        }
+      });
+
+      if (fileRecords.length > 0) {
+        await supabase.from("files").insert(fileRecords);
+      }
+
+      // 4. STAGE 3: Integrations & Completion
+      const uniqueFormIds = [...new Set(validItems.map(i => i.form_id))];
+      const { data: configs } = await supabase.from("forms").select("*").in("id", uniqueFormIds);
+      const configMap = new Map(configs?.map(c => [c.id, c]));
+
+      await Promise.allSettled(insertedSubmissions.map(async (sub, idx) => {
+        const formConfig = configMap.get(sub.form_id);
+        const originalItem = validItems[idx];
+        
+        if (formConfig) {
+          await runIntegrations(formConfig, sub, sub.data);
+        }
+
+        // Final status update
+        await fetch(`${redisUrl}/hset/msg:${originalItem.msg_id}/status/completed`, { headers: authHeader });
+      }));
+
+      totalProcessed += validItems.length;
     }
 
-    // 3. Integrations
-    const { data: formConfig, error: configError } = await supabase.from("forms").select("*").eq("id", form_id).single();
-    if (!configError && formConfig) {
-      await runIntegrations(formConfig, submission, data);
-    }
+    return new Response(JSON.stringify({ success: true, processed: totalProcessed }));
 
-    return new Response(JSON.stringify({ success: true, processed_id: submission.id }));
   } catch (err) {
     console.error("[Worker] Global Error:", err);
     return new Response(JSON.stringify({ error: err.message }), { status: 500 });
@@ -222,6 +277,7 @@ async function getGoogleAccessToken(userId: string) {
             client_id: clientId,
             client_secret: clientSecret,
             refresh_token: integration.refresh_token,
+            grant_type: 'refresh_token',
             grant_type: 'refresh_token',
         }),
     });
