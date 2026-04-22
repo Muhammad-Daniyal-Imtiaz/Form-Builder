@@ -162,17 +162,8 @@ export async function POST(
       return NextResponse.json({ error: 'System busy. Please try again later.' }, { status: 503 });
     }
 
-    // Optionally trigger the worker via a fire-and-forget edge function call
-    // (This helps keep latency low for the user while starting processing immediately)
-    const functionUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/submission-processor`;
-    fetch(functionUrl, {
-      method: 'POST',
-      headers: { 
-        'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ trigger: 'new_submission' })
-    }).catch(err => console.error('[Queue] Worker trigger failed (ignoring):', err));
+    // The worker is now triggered automatically every 1 minute via a Supabase pg_cron job.
+    // This allows the API to just dump into Upstash Redis and return instantly, avoiding Edge Function rate limits.
 
     return NextResponse.json({ 
       success: true, 
