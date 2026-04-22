@@ -116,13 +116,13 @@ export async function POST(
 
     // 2. Metadata Cache Check (DB round-trip protection)
     const cacheKey = `form:${id}:meta`;
-    let form: { published: boolean } | null = await redis.get(cacheKey).catch(() => null);
+    let form: any = await redis.get(cacheKey).catch(() => null);
 
     if (!form) {
       const adminClient = createAdminClient();
       const { data: dbForm, error: formError } = await adminClient
         .from('forms')
-        .select('published')
+        .select('*')
         .eq('id', id)
         .single();
 

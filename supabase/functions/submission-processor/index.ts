@@ -37,7 +37,8 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 Deno.serve(async (req) => {
   const body = await req.json().catch(() => ({}));
   const startTime = Date.now();
-  console.log(`[Worker] Triggered by: ${body.trigger || 'unknown'}`);
+  const workerId = crypto.randomUUID(); // Unique ID for this execution
+  console.log(`[Worker] Triggered by: ${body.trigger || 'unknown'} (ID: ${workerId})`);
 
   let totalProcessed = 0;
 
@@ -49,29 +50,33 @@ Deno.serve(async (req) => {
     if (!redisUrl || !redisToken) throw new Error("Missing Upstash Redis credentials");
 
     const authHeader = { Authorization: `Bearer ${redisToken}` };
+    const processingList = `processing:${workerId}`;
 
-    // 🚀 DRAIN LOOP (FIFO processing: Next.js LPUSH + Worker RPOP)
+    // 🚀 DRAIN LOOP with Crash Safety
     while (Date.now() - startTime < 120000) {
-      // Atomic multi-pop (FIFO)
-      const popRes = await fetch(`${redisUrl}/rpop/form_submissions_queue/500`, { headers: authHeader });
-      const popData = await popRes.json();
-      if (popData.error) throw new Error(`Upstash Error: ${popData.error}`);
+      const batch: any[] = [];
       
-      let queueItemsRaw = popData.result;
-      if (!queueItemsRaw || queueItemsRaw.length === 0) break;
-      if (!Array.isArray(queueItemsRaw)) queueItemsRaw = [queueItemsRaw];
-      
-      const queueItems = queueItemsRaw.map(m => typeof m === 'string' ? JSON.parse(m) : m);
-      console.log(`[Worker] Batch of ${queueItems.length} items popped (FIFO)`);
+      for (let i = 0; i < 500; i++) {
+        const moveRes = await fetch(`${redisUrl}/lmove/form_submissions_queue/${processingList}/RIGHT/LEFT`, {
+           method: 'POST',
+           headers: authHeader
+        });
+        const moveData = await moveRes.json();
+        if (moveData.result) {
+          batch.push(typeof moveData.result === 'string' ? JSON.parse(moveData.result) : moveData.result);
+        } else {
+          break; // Queue empty
+        }
+      }
 
-      // 1. Parallel Verification & Status Updates
-      const verifiedItems = await Promise.all(queueItems.map(async (item) => {
+      if (batch.length === 0) break;
+      console.log(`[Worker] Safely moved ${batch.length} items to ${processingList}`);
+
+      // Step A: Parallel Verification & Status Updates
+      const verifiedItems = await Promise.all(batch.map(async (item) => {
         const msgKey = `msg:${item.msg_id}`;
-        
-        // Update status to processing
         await fetch(`${redisUrl}/hset/${msgKey}/status/processing`, { headers: authHeader });
 
-        // Asynchronous Turnstile Verification (Offloaded from API)
         if (turnstileSecret && turnstileSecret !== 'your_secret_key_here' && item.captchaToken) {
           try {
             const vRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
@@ -81,74 +86,91 @@ Deno.serve(async (req) => {
             });
             const vData = await vRes.json();
             if (!vData.success) {
-              console.warn(`[Worker] Dropping bot submission: ${item.msg_id}`);
               await fetch(`${redisUrl}/hset/${msgKey}/status/rejected`, { headers: authHeader });
               return null;
             }
-          } catch (e) {
-            console.error(`[Worker] Turnstile error for ${item.msg_id}:`, e);
-            // On error, we might want to allow or retry. Here we allow to be safe.
-          }
+          } catch (e) { console.error(`[Worker] Turnstile error:`, e); }
         }
         return item;
       }));
 
       const validItems = verifiedItems.filter(i => i !== null);
-      if (validItems.length === 0) continue;
+      
+      if (validItems.length > 0) {
+        // STAGE 1: Bulk Insert Submissions
+        const submissionsToInsert = validItems.map(item => ({
+          form_id: item.form_id,
+          data: item.data,
+          submitted_at: item.submitted_at || new Date().toISOString()
+        }));
 
-      // 2. STAGE 1: Bulk Insert Submissions
-      const submissionsToInsert = validItems.map(item => ({
-        form_id: item.form_id,
-        data: item.data,
-        submitted_at: item.submitted_at || new Date().toISOString()
-      }));
+        const { data: insertedSubmissions, error: bulkSubmitError } = await supabase
+          .from("submissions")
+          .insert(submissionsToInsert)
+          .select('id, form_id, data, submitted_at');
 
-      const { data: insertedSubmissions, error: bulkSubmitError } = await supabase
-        .from("submissions")
-        .insert(submissionsToInsert)
-        .select('id, form_id, data, submitted_at');
+        if (bulkSubmitError) throw bulkSubmitError;
 
-      if (bulkSubmitError) throw bulkSubmitError;
-
-      // 3. STAGE 2: Bulk Insert Files
-      const fileRecords: any[] = [];
-      insertedSubmissions.forEach((sub, index) => {
-        const originalFiles = validItems[index].files;
-        if (originalFiles?.length > 0) {
-          originalFiles.forEach((f: any) => {
-            fileRecords.push({
-              submission_id: sub.id,
-              file_path: f.path,
-              file_name: f.fileName || "unknown",
-              file_size: f.size || 0,
-              mime_type: f.mimeType || "application/octet-stream",
+        // STAGE 2: Bulk Insert Files
+        const fileRecords: any[] = [];
+        insertedSubmissions.forEach((sub, index) => {
+          const originalFiles = validItems[index].files;
+          if (originalFiles?.length > 0) {
+            originalFiles.forEach((f: any) => {
+              fileRecords.push({
+                submission_id: sub.id,
+                file_path: f.path,
+                file_name: f.fileName || "unknown",
+                file_size: f.size || 0,
+                mime_type: f.mime_type || "application/octet-stream",
+              });
             });
-          });
-        }
-      });
+          }
+        });
+        if (fileRecords.length > 0) await supabase.from("files").insert(fileRecords);
 
-      if (fileRecords.length > 0) {
-        await supabase.from("files").insert(fileRecords);
+        // STAGE 3: Integrations & Completion (DB-Independence Optimization)
+        const uniqueFormIds = [...new Set(validItems.map(i => i.form_id))];
+        const configMap = new Map();
+
+        // 🚀 Attempt Redis lookup for all form configs in the batch
+        const redisMgetRes = await fetch(`${redisUrl}/mget/${uniqueFormIds.map(id => `form:${id}:meta`).join('/')}`, { headers: authHeader });
+        const redisMgetData = await redisMgetRes.json();
+        const cachedConfigs = redisMgetData.result || [];
+
+        const missingFormIds: string[] = [];
+        uniqueFormIds.forEach((id, idx) => {
+          const cached = cachedConfigs[idx];
+          if (cached) {
+            configMap.set(id, typeof cached === 'string' ? JSON.parse(cached) : cached);
+          } else {
+            missingFormIds.push(id);
+          }
+        });
+
+        // 🚀 Hit DB only for missing configs
+        if (missingFormIds.length > 0) {
+          const { data: dbConfigs } = await supabase.from("forms").select("*").in("id", missingFormIds);
+          if (dbConfigs) {
+            for (const conf of dbConfigs) {
+              configMap.set(conf.id, conf);
+              // Backfill Redis cache (60s)
+              await fetch(`${redisUrl}/setex/form:${conf.id}:meta/60/${encodeURIComponent(JSON.stringify(conf))}`, { headers: authHeader });
+            }
+          }
+        }
+
+        await Promise.allSettled(insertedSubmissions.map(async (sub, idx) => {
+          const formConfig = configMap.get(sub.form_id);
+          const originalItem = validItems[idx];
+          if (formConfig) await runIntegrations(formConfig, sub, sub.data);
+          await fetch(`${redisUrl}/hset/msg:${originalItem.msg_id}/status/completed`, { headers: authHeader });
+        }));
+
+        totalProcessed += validItems.length;
       }
 
-      // 4. STAGE 3: Integrations & Completion
-      const uniqueFormIds = [...new Set(validItems.map(i => i.form_id))];
-      const { data: configs } = await supabase.from("forms").select("*").in("id", uniqueFormIds);
-      const configMap = new Map(configs?.map(c => [c.id, c]));
-
-      await Promise.allSettled(insertedSubmissions.map(async (sub, idx) => {
-        const formConfig = configMap.get(sub.form_id);
-        const originalItem = validItems[idx];
-        
-        if (formConfig) {
-          await runIntegrations(formConfig, sub, sub.data);
-        }
-
-        // Final status update
-        await fetch(`${redisUrl}/hset/msg:${originalItem.msg_id}/status/completed`, { headers: authHeader });
-      }));
-
-      totalProcessed += validItems.length;
+      await fetch(`${redisUrl}/del/${processingList}`, { headers: authHeader });
     }
 
     return new Response(JSON.stringify({ success: true, processed: totalProcessed }));
@@ -265,7 +287,6 @@ async function getGoogleAccessToken(userId: string) {
     const isExpired = !integration.expires_at || new Date(integration.expires_at).getTime() < Date.now() + 5 * 60 * 1000;
     if (!isExpired) return integration.access_token;
     
-    // Refresh logic
     const clientId = Deno.env.get("GOOGLE_CLIENT_ID");
     const clientSecret = Deno.env.get("GOOGLE_CLIENT_SECRET");
     if (!clientId || !clientSecret || !integration.refresh_token) return null;
@@ -277,7 +298,6 @@ async function getGoogleAccessToken(userId: string) {
             client_id: clientId,
             client_secret: clientSecret,
             refresh_token: integration.refresh_token,
-            grant_type: 'refresh_token',
             grant_type: 'refresh_token',
         }),
     });
