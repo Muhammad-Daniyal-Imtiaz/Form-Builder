@@ -91,18 +91,22 @@ export async function POST(
 
     // 1. Rate Limiting (Per-Form Per-IP)
     if (ratelimit) {
-      const { success, limit, reset, remaining } = await ratelimit.limit(`${id}:${clientIp}`);
-      if (!success) {
-        return NextResponse.json({ 
-          error: 'Too many submissions for this form. Please try again in 10 minutes.' 
-        }, { 
-          status: 429,
-          headers: {
-            'X-RateLimit-Limit': limit.toString(),
-            'X-RateLimit-Remaining': remaining.toString(),
-            'X-RateLimit-Reset': reset.toString(),
-          }
-        });
+      try {
+        const { success, limit, reset, remaining } = await ratelimit.limit(`${id}:${clientIp}`);
+        if (!success) {
+          return NextResponse.json({ 
+            error: 'Too many submissions for this form. Please try again in 10 minutes.' 
+          }, { 
+            status: 429,
+            headers: {
+              'X-RateLimit-Limit': limit.toString(),
+              'X-RateLimit-Remaining': remaining.toString(),
+              'X-RateLimit-Reset': reset.toString(),
+            }
+          });
+        }
+      } catch (rateLimitError) {
+        console.warn('Rate limit check failed, bypassing:', rateLimitError);
       }
     }
 
@@ -157,22 +161,59 @@ export async function POST(
       client_ip: clientIp,
     };
 
-    const multi = redis.multi();
-    multi.lpush('form_submissions_queue', JSON.stringify(payload));
-    multi.hset(`msg:${msgId}`, { status: "queued", formId: id, ts: Date.now() });
-    multi.expire(`msg:${msgId}`, 86400); // 24h status TTL
-    
-    if (idempotencyKey) {
-      multi.setex(`idempotency:${idempotencyKey}`, 600, msgId); // 10m idempotency
-    }
-    
-    await multi.exec();
+    try {
+      const multi = redis.multi();
+      multi.lpush('form_submissions_queue', JSON.stringify(payload));
+      multi.hset(`msg:${msgId}`, { status: "queued", formId: id, ts: Date.now() });
+      multi.expire(`msg:${msgId}`, 86400); // 24h status TTL
+      
+      if (idempotencyKey) {
+        multi.setex(`idempotency:${idempotencyKey}`, 600, msgId); // 10m idempotency
+      }
+      
+      await multi.exec();
 
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Submission received and is being processed.',
-      queue_id: msgId 
-    }, { status: 202 });
+      return NextResponse.json({ 
+        success: true, 
+        message: 'Submission received and is being processed.',
+        queue_id: msgId 
+      }, { status: 202 });
+    } catch (redisError) {
+      console.warn('Redis enqueue failed, falling back to direct DB insert:', redisError);
+      
+      // Fallback: Insert directly into DB
+      const adminClient = createAdminClient();
+      
+      const { data: insertedSubmission, error: insertError } = await adminClient
+        .from('submissions')
+        .insert({
+          form_id: id,
+          data: data,
+          submitted_at: payload.submitted_at
+        })
+        .select('id')
+        .single();
+        
+      if (insertError) throw insertError;
+      
+      // Fallback: Insert files
+      if (files && files.length > 0) {
+        const fileRecords = files.map((f: any) => ({
+          submission_id: insertedSubmission.id,
+          file_path: f.path,
+          file_name: f.fileName || "unknown",
+          file_size: f.size || 0,
+          mime_type: f.mime_type || "application/octet-stream",
+        }));
+        await adminClient.from('files').insert(fileRecords);
+      }
+      
+      return NextResponse.json({ 
+        success: true, 
+        message: 'Submission received successfully (Direct).',
+        submission_id: insertedSubmission.id
+      }, { status: 201 });
+    }
 
   } catch (error) {
     console.error('POST submission error:', error)
