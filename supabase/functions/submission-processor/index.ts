@@ -1,6 +1,7 @@
-import { createClient } from "supabase-js";
+import { createClient } from "supabase";
 import nodemailer from "nodemailer";
 import crypto from "node:crypto";
+import { Buffer } from "node:buffer";
 
 // --- Types ---
 interface FileRecord {
