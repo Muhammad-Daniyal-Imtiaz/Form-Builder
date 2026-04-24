@@ -27,6 +27,7 @@ function getClientIp(request: Request) {
          request.headers.get('x-real-ip') || 
          request.headers.get('cf-connecting-ip') || 
          request.headers.get('x-forwarded-for')?.split(',')[0].trim() || 
+         (request as any).ip ||
          "anonymous";
 }
 
