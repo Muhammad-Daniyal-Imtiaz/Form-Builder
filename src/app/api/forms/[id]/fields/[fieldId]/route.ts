@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 import { createAdminClient } from '@/utils/supabase/server'
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
