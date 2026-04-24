@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { signIn, signInWithRedirect } from 'aws-amplify/auth'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -16,28 +17,30 @@ export default function LoginPage() {
     setError('')
     setLoading(true)
 
-    const res = await fetch('/api/auth/signin', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    })
+    try {
+      const { isSignedIn, nextStep } = await signIn({
+        username: email,
+        password,
+      });
 
-    const data = await res.json()
-
-    if (!res.ok) {
-      setError(data.error || 'Login failed')
+      if (isSignedIn) {
+        router.push('/dashboard')
+        router.refresh()
+      } else if (nextStep.signInStep === 'CONFIRM_SIGN_UP') {
+        router.push(`/signup/confirm?email=${encodeURIComponent(email)}`)
+      }
+    } catch (err: any) {
+      setError(err.message || 'Login failed')
       setLoading(false)
-      return
     }
-
-    // Success – redirect to dashboard
-    router.push('/dashboard')
-    router.refresh()
   }
 
   const handleGoogleLogin = async () => {
-    // Redirect to Google OAuth API route
-    window.location.href = '/api/auth/google'
+    try {
+      await signInWithRedirect({ provider: 'Google' });
+    } catch (err: any) {
+      setError(err.message || 'Google login failed')
+    }
   }
 
   return (

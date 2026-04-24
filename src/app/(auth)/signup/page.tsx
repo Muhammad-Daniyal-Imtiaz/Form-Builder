@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { signUp, signInWithRedirect } from 'aws-amplify/auth'
 
 export default function SignupPage() {
   const router = useRouter()
@@ -17,32 +18,36 @@ export default function SignupPage() {
     setError('')
     setLoading(true)
 
-    const res = await fetch('/api/auth/signup', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, password }),
-    })
+    try {
+      const { isSignUpComplete, nextStep } = await signUp({
+        username: email,
+        password,
+        options: {
+          userAttributes: {
+            email,
+            name,
+          },
+        },
+      });
 
-    const data = await res.json()
-
-    if (!res.ok) {
-      setError(data.error || 'Signup failed')
+      if (isSignUpComplete) {
+        router.push('/dashboard')
+      } else if (nextStep.signUpStep === 'CONFIRM_SIGN_UP') {
+        router.push(`/signup/confirm?email=${encodeURIComponent(email)}`)
+      }
+      router.refresh()
+    } catch (err: any) {
+      setError(err.message || 'Signup failed')
       setLoading(false)
-      return
     }
-
-    // If user needs email verification, show message; otherwise redirect
-    if (data.message?.includes('verify your email')) {
-      alert('Please check your email to verify your account.')
-      router.push('/login')
-    } else {
-      router.push('/dashboard')
-    }
-    router.refresh()
   }
 
   const handleGoogleLogin = async () => {
-    window.location.href = '/api/auth/google'
+    try {
+      await signInWithRedirect({ provider: 'Google' });
+    } catch (err: any) {
+      setError(err.message || 'Google login failed')
+    }
   }
 
   return (
