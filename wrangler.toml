@@ -1,7 +1,11 @@
 name = "form-builder-latest"
-compatibility_date = "2024-11-18"
+main = ".open-next/worker.js"
+compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
-pages_build_output_dir = ".open-next"
+
+[assets]
+directory = ".open-next/assets"
+binding = "ASSETS"
 
 [vars]
 # Add your production environment variables here if needed
