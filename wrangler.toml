@@ -1,0 +1,13 @@
+name = "form-builder-latest"
+compatibility_date = "2024-04-24"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+# You can add public environment variables here
+# ENCRYPTION_SECRET = "..."
+
+[[kv_namespaces]]
+# If you use KV storage, add it here
+
+[[r2_buckets]]
+# If you use R2 storage, add it here
