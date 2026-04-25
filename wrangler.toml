@@ -1,4 +1,4 @@
-name = "form-builder-latest"
+name = "form-builder"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 pages_build_output_dir = ".open-next"
@@ -6,3 +6,5 @@ pages_build_output_dir = ".open-next"
 [vars]
 # Add your production environment variables here if needed
 # ENCRYPTION_SECRET = "..."
+
+
