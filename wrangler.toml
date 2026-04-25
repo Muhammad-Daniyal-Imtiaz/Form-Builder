@@ -1,13 +1,8 @@
 name = "form-builder-latest"
 compatibility_date = "2024-04-24"
 compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = ".open-next/assets"
 
 [vars]
-# You can add public environment variables here
+# Add your production environment variables here if needed
 # ENCRYPTION_SECRET = "..."
-
-[[kv_namespaces]]
-# If you use KV storage, add it here
-
-[[r2_buckets]]
-# If you use R2 storage, add it here
