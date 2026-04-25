@@ -5,7 +5,6 @@ pages_build_output_dir = ".open-next"
 
 [assets]
 directory = ".open-next/assets"
-binding = "ASSETS"
 
 [vars]
 # Add your production environment variables here if needed
