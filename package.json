@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "build:cloudflare": "next build && npx opennextjs-cloudflare build && cp -r .open-next/assets/. .open-next/ && mv .open-next/worker.js .open-next/_worker.js",
+    "build:cloudflare": "next build && npx opennextjs-cloudflare build && cp -r .open-next/assets/_next .open-next/ && cp -r .open-next/assets/* .open-next/ || true && mv .open-next/worker.js .open-next/_worker.js && ls -F .open-next",
     "start": "next start",
     "start:cloudflare": "npx opennextjs-cloudflare",
     "lint": "eslint",
